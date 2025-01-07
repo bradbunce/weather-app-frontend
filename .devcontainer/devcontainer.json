@@ -1,0 +1,22 @@
+{
+  "name": "ld-hands-on-learning-frontend",
+  "dockerFile": "Dockerfile",
+  "appPort": [3000],
+  "runArgs": ["-u", "node"],
+  "settings": {
+      "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "postCreateCommand": "npm install",
+  "customizations": {
+      "vscode": {
+          "extensions": [
+              "esbenp.prettier-vscode",
+              "amazonwebservices.aws-toolkit-vscode",
+              "dsznajder.es7-react-js-snippets"
+          ]
+      }
+  },
+  "mounts": [
+      "source=${localEnv:HOME}/.aws,target=/home/node/.aws,type=bind,consistency=cached"
+  ]
+}
