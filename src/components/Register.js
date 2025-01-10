@@ -23,16 +23,17 @@ const Register = () => {
     try {
       setError('');
       setLoading(true);
-      // This will be replaced with actual API call to Lambda
-      // const response = await axios.post('YOUR_LAMBDA_API_ENDPOINT/register', {
-      //   username: formData.username,
-      //   password: formData.password
-      // });
+      const response = await axios.post('https://9p0x3s1ocj.execute-api.us-east-1.amazonaws.com/prodcution/register', {
+        username: formData.username,
+        password: formData.password
+      });
       
-      // Simulate successful registration
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
       navigate('/login');
     } catch (err) {
-      setError('Failed to create an account');
+      setError(err.response?.data?.error || err.message || 'Failed to create an account');
     }
     setLoading(false);
   };
