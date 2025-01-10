@@ -23,7 +23,7 @@ const Register = () => {
     try {
       setError('');
       setLoading(true);
-      const response = await axios.post('https://n61565xm3g.execute-api.us-east-1.amazonaws.com/production/register', {
+      const response = await axios.post('https://ian5p3n5ad.execute-api.us-east-1.amazonaws.com/production/register', {
         username: formData.username,
         password: formData.password
       });
