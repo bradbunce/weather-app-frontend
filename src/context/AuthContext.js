@@ -24,17 +24,14 @@ export const AuthProvider = ({ children }) => {
             }
         );
 
-        console.log('Login response:', {
-            status: response.status,
-            statusText: response.statusText,
-            data: response.data
-        });
+        console.log('Login response:', response);
 
-        if (response.data.error) {
-            throw new Error(response.data.error);
+        // Check the nested status code
+        if (response.data.statusCode !== 200) {
+            throw new Error(response.data.body.error);
         }
 
-        const { token, user: userData } = response.data;
+        const { token, user: userData } = response.data.body;
         localStorage.setItem('authToken', token);
         setUser(userData);
         setIsAuthenticated(true);
@@ -53,7 +50,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('authToken');
         delete axios.defaults.headers.common['Authorization'];
         
-        throw error; // Re-throw to be handled by the component
+        throw error;
     }
 };
 
