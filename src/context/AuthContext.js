@@ -9,46 +9,53 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const response = await axios.post(
-        'https://ian5p3n5ad.execute-api.us-east-1.amazonaws.com/production/login',
-        {
-          username: credentials.username,
-          password: credentials.password
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
+        console.log('Attempting login for user:', credentials.username);
+        
+        const response = await axios.post(
+            'https://ian5p3n5ad.execute-api.us-east-1.amazonaws.com/production/login',
+            {
+                username: credentials.username,
+                password: credentials.password
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        console.log('Login response:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: response.data
+        });
+
+        if (response.data.error) {
+            throw new Error(response.data.error);
         }
-      );
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
+        const { token, user: userData } = response.data;
+        localStorage.setItem('authToken', token);
+        setUser(userData);
+        setIsAuthenticated(true);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      // Store the token
-      const { token, user: userData } = response.data;
-      // You might want to store the token in localStorage
-      localStorage.setItem('authToken', token);
-      
-      // Set the user data and authentication state
-      setUser(userData);
-      setIsAuthenticated(true);
-
-      // Configure axios to use the token for future requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-      return true;
+        return true;
     } catch (error) {
-      console.error('Login failed:', error);
-      // Clear any existing auth state on error
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem('authToken');
-      delete axios.defaults.headers.common['Authorization'];
-      return false;
+        console.error('Login error details:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+        });
+        
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem('authToken');
+        delete axios.defaults.headers.common['Authorization'];
+        
+        throw error; // Re-throw to be handled by the component
     }
-  };
+};
 
   const logout = () => {
     // Clear auth state and token

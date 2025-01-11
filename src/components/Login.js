@@ -16,19 +16,21 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      setError('');
-      setLoading(true);
-      const success = await login(credentials);
-      if (success) {
+        setError('');
+        setLoading(true);
+        await login(credentials);
         navigate('/dashboard');
-      } else {
-        setError('Failed to log in');
-      }
     } catch (err) {
-      setError('Failed to log in');
+        console.error('Login error:', err);
+        setError(
+            err.response?.data?.error || 
+            err.message || 
+            'Failed to log in'
+        );
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
-  };
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
