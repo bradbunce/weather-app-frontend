@@ -24,14 +24,24 @@ export const AuthProvider = ({ children }) => {
             }
         );
 
-        console.log('Raw login response:', response);  // Debug log
+        console.log('Raw login response:', {
+            data: response.data,
+            status: response.status,
+            headers: response.headers
+        });
 
-        // The data should be directly in response.data
-        if (response.data.error) {
-            throw new Error(response.data.error);
+        // Parse the stringified body if necessary
+        const responseData = typeof response.data === 'string' 
+            ? JSON.parse(response.data) 
+            : response.data;
+
+        console.log('Parsed response data:', responseData);
+
+        if (responseData.error) {
+            throw new Error(responseData.error);
         }
 
-        const { token, user } = response.data;
+        const { token, user } = responseData;
         
         if (!token) {
             throw new Error('No token received from server');
@@ -47,7 +57,8 @@ export const AuthProvider = ({ children }) => {
         console.error('Login error details:', {
             message: error.message,
             response: error.response?.data,
-            status: error.response?.status
+            status: error.response?.status,
+            fullError: error
         });
         
         setUser(null);
