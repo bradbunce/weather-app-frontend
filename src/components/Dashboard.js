@@ -14,24 +14,62 @@ const Dashboard = () => {
   const { user } = useAuth();
 
   useEffect(() => {
+    // Debug auth state on mount and user changes
+    console.log('Auth state:', {
+      isAuthenticated: !!user,
+      username: user?.username,
+      hasToken: !!user?.token
+    });
+    
     fetchLocations();
   }, [user]);
 
   const fetchLocations = async () => {
-    if (!user?.username) return;
+    if (!user?.username) {
+      console.log('No user data, skipping locations fetch');
+      setLoading(false);
+      return;
+    }
 
     try {
+      console.log('Fetching locations for user:', user.username);
+      console.log('API URL:', `${LOCATIONS_API_URL}/locations/${user.username}`);
+      
       const response = await axios.get(`${LOCATIONS_API_URL}/locations/${user.username}`, {
         headers: {
-          Authorization: `Bearer ${user.token}`
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
         }
       });
       
-      setLocations(response.data.locations || []);
+      console.log('Locations response:', response.data);
+      
+      if (response.data?.locations) {
+        setLocations(response.data.locations);
+      } else if (Array.isArray(response.data)) {
+        setLocations(response.data);
+      } else {
+        console.warn('Unexpected locations data format:', response.data);
+        setLocations([]);
+      }
+      
       setLoading(false);
     } catch (err) {
-      console.error('Error fetching locations:', err);
-      setError(err.response?.data?.message || 'Failed to fetch locations');
+      console.error('Error fetching locations:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+      
+      let errorMessage = 'Failed to fetch locations';
+      
+      if (err.response?.status === 403) {
+        errorMessage = 'Authentication error. Please try logging in again.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -41,34 +79,55 @@ const Dashboard = () => {
     if (!newLocation.trim() || !user?.username) return;
 
     try {
+      console.log('Adding location:', {
+        username: user.username,
+        location: newLocation.trim()
+      });
+      
       const response = await axios.post(`${LOCATIONS_API_URL}/locations`, {
         username: user.username,
         location: newLocation.trim()
       }, {
         headers: {
-          Authorization: `Bearer ${user.token}`
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
         }
       });
       
-      // Debug logging
       console.log('Add location response:', response.data);
       
-      // Check the structure of the response
-      const addedLocation = response.data.location || response.data;
-      
-      // Ensure we have an id before adding to state
-      if (!addedLocation.id) {
-        console.error('Missing id in response:', addedLocation);
-        throw new Error('Invalid location data received');
+      let addedLocation;
+      if (response.data?.location) {
+        addedLocation = response.data.location;
+      } else if (response.data?.id) {
+        addedLocation = response.data;
+      } else {
+        console.error('Invalid location data received:', response.data);
+        throw new Error('Invalid location data received from server');
       }
       
       setLocations(prevLocations => [...prevLocations, addedLocation]);
       setNewLocation('');
       setError('');
+      
+      // Refresh locations list to ensure consistency
+      fetchLocations();
     } catch (err) {
-      console.error('Error adding location:', err);
-      console.error('Error response:', err.response?.data);
-      setError(err.response?.data?.message || 'Failed to add location');
+      console.error('Error adding location:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+      
+      let errorMessage = 'Failed to add location';
+      
+      if (err.response?.status === 403) {
+        errorMessage = 'Authentication error. Please try logging in again.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -76,19 +135,60 @@ const Dashboard = () => {
     if (!user?.username) return;
 
     try {
+      console.log('Removing location:', locationId);
+      
       await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`, {
         headers: {
-          Authorization: `Bearer ${user.token}`
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
         }
       });
       
       setLocations(prevLocations => 
         prevLocations.filter(loc => loc.id !== locationId)
       );
+      
+      // Refresh locations list to ensure consistency
+      fetchLocations();
     } catch (err) {
-      console.error('Error removing location:', err);
-      setError(err.response?.data?.message || 'Failed to remove location');
+      console.error('Error removing location:', {
+        locationId,
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+      
+      let errorMessage = 'Failed to remove location';
+      
+      if (err.response?.status === 403) {
+        errorMessage = 'Authentication error. Please try logging in again.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      setError(errorMessage);
     }
+  };
+
+  // Development only debug panel
+  const DebugPanel = () => {
+    if (process.env.NODE_ENV === 'production') return null;
+    
+    return (
+      <div className="mb-3 p-2 bg-light border rounded">
+        <small>
+          <pre className="mb-0">
+            {JSON.stringify({
+              userExists: !!user,
+              username: user?.username,
+              hasToken: !!user?.token,
+              apiUrl: LOCATIONS_API_URL,
+              locationCount: locations.length
+            }, null, 2)}
+          </pre>
+        </small>
+      </div>
+    );
   };
 
   if (!user) {
@@ -111,6 +211,8 @@ const Dashboard = () => {
 
   return (
     <Container>
+      <DebugPanel />
+      
       <h2 className="mb-4">My Weather Dashboard</h2>
       
       <Form onSubmit={addLocation} className="mb-4">
