@@ -26,7 +26,7 @@ const Dashboard = () => {
   const getAuthHeaders = () => {
     if (!user?.token) return {};
     return {
-      'Authorization': `JWT=${user.token}`,  // Using both JWT prefix and equals sign
+      'Authorization': `HS256 ${user.token}`,  // Using the specific algorithm name
       'Content-Type': 'application/json'
     };
   };
