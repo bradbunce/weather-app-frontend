@@ -26,7 +26,7 @@ const Dashboard = () => {
   const getAuthHeaders = () => {
     if (!user?.token) return {};
     return {
-      'Authorization': `HS256 ${user.token}`,  // Using the specific algorithm name
+      'Authorization': `Bearer ${user.token}`,  // Match the token validation regex
       'Content-Type': 'application/json'
     };
   };
