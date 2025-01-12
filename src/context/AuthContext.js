@@ -24,16 +24,21 @@ export const AuthProvider = ({ children }) => {
             }
         );
 
-        console.log('Login response:', response);
+        console.log('Raw login response:', response);  // Debug log
 
-        // Check the nested status code
-        if (response.data.statusCode !== 200) {
-            throw new Error(response.data.body.error);
+        // The data should be directly in response.data
+        if (response.data.error) {
+            throw new Error(response.data.error);
         }
 
-        const { token, user: userData } = response.data.body;
+        const { token, user } = response.data;
+        
+        if (!token) {
+            throw new Error('No token received from server');
+        }
+
         localStorage.setItem('authToken', token);
-        setUser(userData);
+        setUser(user);
         setIsAuthenticated(true);
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
