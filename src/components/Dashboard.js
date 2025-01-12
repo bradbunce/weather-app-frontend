@@ -50,12 +50,24 @@ const Dashboard = () => {
         }
       });
       
-      const addedLocation = response.data.location;
+      // Debug logging
+      console.log('Add location response:', response.data);
+      
+      // Check the structure of the response
+      const addedLocation = response.data.location || response.data;
+      
+      // Ensure we have an id before adding to state
+      if (!addedLocation.id) {
+        console.error('Missing id in response:', addedLocation);
+        throw new Error('Invalid location data received');
+      }
+      
       setLocations(prevLocations => [...prevLocations, addedLocation]);
       setNewLocation('');
       setError('');
     } catch (err) {
       console.error('Error adding location:', err);
+      console.error('Error response:', err.response?.data);
       setError(err.response?.data?.message || 'Failed to add location');
     }
   };
