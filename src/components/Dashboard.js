@@ -4,6 +4,8 @@ import axios from 'axios';
 import WeatherCard from './WeatherCard';
 import { useAuth } from '../context/AuthContext';
 
+const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;
+
 const Dashboard = () => {
   const [locations, setLocations] = useState([]);
   const [newLocation, setNewLocation] = useState('');
@@ -13,62 +15,79 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchLocations();
-  }, []);
+  }, [user]);
 
   const fetchLocations = async () => {
+    if (!user?.username) return;
+
     try {
-      // This will be replaced with actual API call to Lambda
-      // const response = await axios.get(`YOUR_LAMBDA_API_ENDPOINT/locations/${user.username}`);
-      // setLocations(response.data);
+      const response = await axios.get(`${LOCATIONS_API_URL}/locations/${user.username}`, {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      });
       
-      // Temporary mock data
-      setLocations([
-        { id: 1, name: 'New York', country: 'US' },
-        { id: 2, name: 'London', country: 'UK' }
-      ]);
+      setLocations(response.data.locations || []);
       setLoading(false);
     } catch (err) {
-      setError('Failed to fetch locations');
+      console.error('Error fetching locations:', err);
+      setError(err.response?.data?.message || 'Failed to fetch locations');
       setLoading(false);
     }
   };
 
   const addLocation = async (e) => {
     e.preventDefault();
-    if (!newLocation.trim()) return;
+    if (!newLocation.trim() || !user?.username) return;
 
     try {
-      // This will be replaced with actual API call to Lambda
-      // const response = await axios.post('YOUR_LAMBDA_API_ENDPOINT/locations', {
-      //   username: user.username,
-      //   location: newLocation
-      // });
+      const response = await axios.post(`${LOCATIONS_API_URL}/locations`, {
+        username: user.username,
+        location: newLocation.trim()
+      }, {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      });
       
-      // Temporary mock implementation
-      const mockNewLocation = {
-        id: locations.length + 1,
-        name: newLocation,
-        country: 'US'
-      };
-      
-      setLocations([...locations, mockNewLocation]);
+      const addedLocation = response.data.location;
+      setLocations(prevLocations => [...prevLocations, addedLocation]);
       setNewLocation('');
       setError('');
     } catch (err) {
-      setError('Failed to add location');
+      console.error('Error adding location:', err);
+      setError(err.response?.data?.message || 'Failed to add location');
     }
   };
 
   const removeLocation = async (locationId) => {
+    if (!user?.username) return;
+
     try {
-      // This will be replaced with actual API call to Lambda
-      // await axios.delete(`YOUR_LAMBDA_API_ENDPOINT/locations/${locationId}`);
+      await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`, {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      });
       
-      setLocations(locations.filter(loc => loc.id !== locationId));
+      setLocations(prevLocations => 
+        prevLocations.filter(loc => loc.id !== locationId)
+      );
     } catch (err) {
-      setError('Failed to remove location');
+      console.error('Error removing location:', err);
+      setError(err.response?.data?.message || 'Failed to remove location');
     }
   };
+
+  if (!user) {
+    return (
+      <Container>
+        <Alert variant="warning">
+          Please log in to view your weather dashboard.
+        </Alert>
+      </Container>
+    );
+  }
 
   if (loading) {
     return (
@@ -95,14 +114,26 @@ const Dashboard = () => {
             </Form.Group>
           </Col>
           <Col sm={4} md={2}>
-            <Button type="submit" variant="primary">
+            <Button 
+              type="submit" 
+              variant="primary"
+              disabled={!newLocation.trim()}
+            >
               Add Location
             </Button>
           </Col>
         </Row>
       </Form>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      {error && (
+        <Alert 
+          variant="danger" 
+          dismissible 
+          onClose={() => setError('')}
+        >
+          {error}
+        </Alert>
+      )}
 
       <Row xs={1} md={2} lg={3} className="g-4">
         {locations.map(location => (
@@ -114,6 +145,12 @@ const Dashboard = () => {
           </Col>
         ))}
       </Row>
+
+      {locations.length === 0 && !error && (
+        <Alert variant="info">
+          No locations added yet. Add a city to get started!
+        </Alert>
+      )}
     </Container>
   );
 };

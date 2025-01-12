@@ -3,6 +3,8 @@ import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
+
 const Register = () => {
   const [formData, setFormData] = useState({
     username: '',
@@ -23,7 +25,8 @@ const Register = () => {
     try {
       setError('');
       setLoading(true);
-      const response = await axios.post('https://ian5p3n5ad.execute-api.us-east-1.amazonaws.com/production/register', {
+      
+      const response = await axios.post(`${AUTH_API_URL}/register`, {
         username: formData.username,
         password: formData.password
       });
@@ -31,11 +34,19 @@ const Register = () => {
       if (response.data.error) {
         throw new Error(response.data.error);
       }
+      
       navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to create an account');
+      console.error('Registration error:', err);
+      setError(
+        err.response?.data?.error || 
+        err.response?.data?.message || 
+        err.message || 
+        'Failed to create an account'
+      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleChange = (e) => {
@@ -53,7 +64,15 @@ const Register = () => {
           <Card>
             <Card.Body>
               <h2 className="text-center mb-4">Register</h2>
-              {error && <Alert variant="danger">{error}</Alert>}
+              {error && (
+                <Alert 
+                  variant="danger" 
+                  dismissible 
+                  onClose={() => setError('')}
+                >
+                  {error}
+                </Alert>
+              )}
               <Form onSubmit={handleSubmit}>
                 <Form.Group className="mb-3" controlId="username">
                   <Form.Label>Username</Form.Label>
@@ -63,6 +82,8 @@ const Register = () => {
                     value={formData.username}
                     onChange={handleChange}
                     required
+                    autoComplete="username"
+                    placeholder="Enter username"
                   />
                 </Form.Group>
 
@@ -74,6 +95,8 @@ const Register = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
+                    autoComplete="new-password"
+                    placeholder="Enter password"
                   />
                 </Form.Group>
 
@@ -85,6 +108,8 @@ const Register = () => {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
+                    autoComplete="new-password"
+                    placeholder="Confirm password"
                   />
                 </Form.Group>
 
