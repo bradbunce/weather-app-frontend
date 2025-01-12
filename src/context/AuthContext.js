@@ -11,6 +11,11 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Format token based on API needs
+  const formatTokenForApi = (token, needsBearer = true) => {
+    return needsBearer ? `Bearer ${token}` : token;
+  };
+
   // Check for existing token on mount
   useEffect(() => {
     const initializeAuth = async () => {
@@ -18,17 +23,19 @@ export const AuthProvider = ({ children }) => {
       
       if (storedToken) {
         try {
-          // Validate token and get user data
+          // For auth API, use Bearer prefix
           const response = await axios.get(`${AUTH_API_URL}/validate-token`, {
             headers: {
-              Authorization: `Bearer ${storedToken}`
+              Authorization: formatTokenForApi(storedToken, true)
             }
           });
 
           const userData = response.data.user;
-          setUser(userData);
+          // Store the raw token in the user object
+          setUser({ ...userData, token: storedToken });
           setIsAuthenticated(true);
-          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          // For default axios headers, use Bearer prefix
+          axios.defaults.headers.common['Authorization'] = formatTokenForApi(storedToken, true);
         } catch (error) {
           console.warn('Stored token validation failed:', error.message);
           localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -59,7 +66,6 @@ export const AuthProvider = ({ children }) => {
         }
       );
 
-      // Handle both string and object responses
       const responseData = typeof response.data === 'string' 
         ? JSON.parse(response.data) 
         : response.data;
@@ -74,11 +80,13 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid response format from server');
       }
 
-      // Set auth state
+      // Store raw token
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      setUser(userData);
+      // Include raw token in user object
+      setUser({ ...userData, token });
       setIsAuthenticated(true);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Use Bearer prefix for default axios headers
+      axios.defaults.headers.common['Authorization'] = formatTokenForApi(token, true);
 
       return true;
     } catch (error) {
@@ -88,13 +96,11 @@ export const AuthProvider = ({ children }) => {
         status: error.response?.status
       });
 
-      // Clear auth state
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       delete axios.defaults.headers.common['Authorization'];
 
-      // Throw a user-friendly error
       throw new Error(
         error.response?.data?.message || 
         error.message || 
@@ -107,12 +113,17 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Attempt to notify the server
-      await axios.post(`${AUTH_API_URL}/logout`);
+      const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (currentToken) {
+        await axios.post(`${AUTH_API_URL}/logout`, {}, {
+          headers: {
+            Authorization: formatTokenForApi(currentToken, true)
+          }
+        });
+      }
     } catch (error) {
       console.warn('Logout notification failed:', error.message);
     } finally {
-      // Clear auth state regardless of server response
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -130,7 +141,7 @@ export const AuthProvider = ({ children }) => {
         {},
         {
           headers: {
-            Authorization: `Bearer ${currentToken}`
+            Authorization: formatTokenForApi(currentToken, true)
           }
         }
       );
@@ -142,12 +153,12 @@ export const AuthProvider = ({ children }) => {
       }
 
       localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      setUser(prev => ({ ...prev, token: newToken }));
+      axios.defaults.headers.common['Authorization'] = formatTokenForApi(newToken, true);
 
       return true;
     } catch (error) {
       console.error('Token refresh failed:', error.message);
-      // If refresh fails, log out the user
       logout();
       throw error;
     }
@@ -163,7 +174,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>; // Or your loading component
+    return <div>Loading...</div>;
   }
 
   return (

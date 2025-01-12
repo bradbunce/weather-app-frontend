@@ -14,7 +14,6 @@ const Dashboard = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Debug auth state on mount and user changes
     console.log('Auth state:', {
       isAuthenticated: !!user,
       username: user?.username,
@@ -23,6 +22,14 @@ const Dashboard = () => {
     
     fetchLocations();
   }, [user]);
+
+  const getAuthHeaders = () => {
+    if (!user?.token) return {};
+    return {
+      'Authorization': `Authorization=${user.token}`,  // Format as key=value
+      'Content-Type': 'application/json'
+    };
+  };
 
   const fetchLocations = async () => {
     if (!user?.username) {
@@ -33,13 +40,10 @@ const Dashboard = () => {
 
     try {
       console.log('Fetching locations for user:', user.username);
-      console.log('API URL:', `${LOCATIONS_API_URL}/locations/${user.username}`);
+      console.log('Using headers:', getAuthHeaders());
       
       const response = await axios.get(`${LOCATIONS_API_URL}/locations/${user.username}`, {
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders()
       });
       
       console.log('Locations response:', response.data);
@@ -64,7 +68,7 @@ const Dashboard = () => {
       let errorMessage = 'Failed to fetch locations';
       
       if (err.response?.status === 403) {
-        errorMessage = 'Authentication error. Please try logging in again.';
+        errorMessage = 'Authentication error. Please check your login status.';
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       }
