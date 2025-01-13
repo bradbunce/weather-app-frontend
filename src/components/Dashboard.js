@@ -219,6 +219,36 @@ const Dashboard = () => {
     }
   };
 
+  const testApiConnection = async () => {
+    try {
+      // First, try an OPTIONS request
+      console.log('Testing OPTIONS request...');
+      const optionsResponse = await axios({
+        method: 'OPTIONS',
+        url: `${LOCATIONS_API_URL}/locations`,
+        headers: {
+          'Access-Control-Request-Method': 'GET',
+          'Access-Control-Request-Headers': 'authorization,content-type',
+          'Origin': window.location.origin
+        }
+      });
+      console.log('OPTIONS response:', optionsResponse);
+  
+      // Then try a GET request with no auth
+      console.log('Testing GET request without auth...');
+      const getResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
+      console.log('GET response:', getResponse);
+    } catch (err) {
+      console.log('Test request failed:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        headers: err.response?.headers,
+        data: err.response?.data,
+        message: err.message
+      });
+    }
+  };
+
   // Development only debug panel
   const DebugPanel = () => {
     if (process.env.NODE_ENV === 'production') return null;
@@ -239,6 +269,17 @@ const Dashboard = () => {
       </div>
     );
   };
+
+  {process.env.NODE_ENV !== 'production' && (
+    <Button 
+      variant="secondary" 
+      size="sm" 
+      className="mb-3"
+      onClick={testApiConnection}
+    >
+      Test API Connection
+    </Button>
+  )}
 
   if (!user) {
     return (
