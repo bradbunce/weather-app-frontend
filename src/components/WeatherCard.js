@@ -41,7 +41,8 @@ const WeatherCard = ({ location, onRemove }) => {
                     if (location?.name) {
                         const message = {
                             action: 'subscribe',
-                            locationName: location.name
+                            locationName: location.name,
+                            token: user.token
                         };
                         websocket.send(JSON.stringify(message));
                     }
@@ -50,16 +51,18 @@ const WeatherCard = ({ location, onRemove }) => {
                 websocket.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
-                        console.log('Received weather data:', data);
+                        console.log('Received WebSocket message:', data);
 
-                        if (data.error) {
-                            setError(data.error);
+                        // Handle different message types
+                        if (data.type === 'error') {
+                            setError(data.message);
                             setLoading(false);
                             return;
                         }
 
-                        if (data.locationName === location.name) {
-                            setWeather(data);
+                        if (data.type === 'weatherUpdate' && 
+                            data.data.locationName === location.name) {
+                            setWeather(data.data);
                             setError('');
                             setLoading(false);
                         }
@@ -104,7 +107,8 @@ const WeatherCard = ({ location, onRemove }) => {
                 if (websocket.readyState === WebSocket.OPEN) {
                     const message = {
                         action: 'unsubscribe',
-                        locationName: location.name
+                        locationName: location.name,
+                        token: user?.token
                     };
                     websocket.send(JSON.stringify(message));
                 }
@@ -117,8 +121,9 @@ const WeatherCard = ({ location, onRemove }) => {
     const handleRefresh = () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             const message = {
-                action: 'getData',
-                locationName: location.name
+                action: 'getWeather',
+                locationName: location.name,
+                token: user?.token
             };
             ws.send(JSON.stringify(message));
             setLoading(true);
