@@ -8,9 +8,8 @@ const INITIAL_BACKOFF_DELAY = 500;
 const CONNECTION_TIMEOUT = 5000;
 
 const WeatherCard = ({ location, onRemove }) => {
-  // Debug log for location structure
   console.log('WeatherCard received location:', location);
-
+  
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -22,6 +21,7 @@ const WeatherCard = ({ location, onRemove }) => {
   const { user } = useAuth();
 
   const connectWebSocket = () => {
+    // Clear any existing connection and timeouts
     if (wsRef.current) {
       console.log('Closing existing connection');
       wsRef.current.close();
@@ -65,7 +65,8 @@ const WeatherCard = ({ location, onRemove }) => {
     console.log("Initiating WebSocket connection...", {
       attempt: attemptRef.current + 1,
       backoffDelay,
-      location: location.city_name
+      location: location.city_name,
+      wsUrl: WEBSOCKET_API_URL
     });
 
     reconnectTimeoutRef.current = setTimeout(() => {
@@ -73,6 +74,8 @@ const WeatherCard = ({ location, onRemove }) => {
         const websocketUrlWithToken = `${WEBSOCKET_API_URL}?token=${encodeURIComponent(
           user.token
         )}`;
+        console.log('Connecting to WebSocket URL:', websocketUrlWithToken);
+        
         const ws = new WebSocket(websocketUrlWithToken);
 
         connectionTimeoutRef.current = setTimeout(() => {
@@ -96,46 +99,73 @@ const WeatherCard = ({ location, onRemove }) => {
                 const message = {
                   action: 'subscribe',
                   locationName: location.city_name,
+                  countryCode: location.country_code,
                   token: user.token
                 };
-                console.log('Sending subscription message for:', location.city_name);
+                console.log('Sending subscription message:', message);
                 ws.send(JSON.stringify(message));
               } catch (err) {
                 console.error('Error sending subscription:', err);
                 setError("Failed to subscribe to updates");
               }
+            } else {
+              console.log('WebSocket not ready for subscription:', {
+                readyState: ws.readyState,
+                location: location.city_name
+              });
             }
           }, 1000);
         };
 
         ws.onmessage = (event) => {
-          console.log('Received WebSocket message for:', location.city_name);
+          console.log('Raw WebSocket message received:', event.data);
           try {
             const data = JSON.parse(event.data);
-            console.log("Parsed message data:", data);
+            console.log("Parsed WebSocket message:", {
+              type: data.type,
+              locationMatch: data.data?.locationName === location.city_name,
+              data: data
+            });
 
             if (data.type === "error") {
+              console.error('WebSocket error message:', data.message);
               setError(data.message);
               setLoading(false);
               return;
             }
 
             if (data.type === "weatherUpdate") {
-              const locationData = Array.isArray(data.data)
-                ? data.data.find((d) => d.locationName === location.city_name)
-                : data.data.locationName === location.city_name
-                ? data.data
-                : null;
+              let locationData = null;
+              
+              if (Array.isArray(data.data)) {
+                locationData = data.data.find(d => d.locationName === location.city_name);
+                console.log('Searching array for location:', {
+                  searchingFor: location.city_name,
+                  found: !!locationData,
+                  availableLocations: data.data.map(d => d.locationName)
+                });
+              } else {
+                locationData = data.data.locationName === location.city_name ? data.data : null;
+                console.log('Checking single location:', {
+                  searchingFor: location.city_name,
+                  receivedLocation: data.data.locationName,
+                  matches: data.data.locationName === location.city_name
+                });
+              }
 
               if (locationData) {
-                console.log('Setting weather data for:', location.city_name);
+                console.log('Setting weather data:', locationData);
                 setWeather(locationData);
                 setError("");
+                setLoading(false);
+              } else {
+                console.log('No matching location data found in response');
+                setError("No data available for this location");
                 setLoading(false);
               }
             }
           } catch (err) {
-            console.error("Error processing message:", err);
+            console.error("Error processing WebSocket message:", err);
             setError("Error processing weather data");
             setLoading(false);
           }
@@ -193,6 +223,7 @@ const WeatherCard = ({ location, onRemove }) => {
           const message = {
             action: "unsubscribe",
             locationName: location.city_name,
+            countryCode: location.country_code,
             token: user?.token,
           };
           wsRef.current.send(JSON.stringify(message));
@@ -209,6 +240,7 @@ const WeatherCard = ({ location, onRemove }) => {
       const message = {
         action: "getWeather",
         locationName: location.city_name,
+        countryCode: location.country_code,
         token: user?.token,
       };
       wsRef.current.send(JSON.stringify(message));
