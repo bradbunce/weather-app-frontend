@@ -13,18 +13,75 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
+  // Step 1: Add axios interceptors for request/response debugging
   useEffect(() => {
-    console.log('Auth state:', {
+    const requestInterceptor = axios.interceptors.request.use(request => {
+      console.log('🚀 Starting Request:', {
+        url: request.url,
+        method: request.method,
+        headers: request.headers
+      });
+      return request;
+    });
+
+    const responseInterceptor = axios.interceptors.response.use(
+      response => {
+        console.log('✅ Response:', response);
+        return response;
+      },
+      error => {
+        console.log('❌ Response Error:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+        return Promise.reject(error);
+      }
+    );
+
+    // Cleanup interceptors on unmount
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Step 2: Enhanced auth debugging
+    console.log('🔐 Auth state:', {
       isAuthenticated: !!user,
       username: user?.username,
       hasToken: !!user?.token
     });
+
+    // Step 3: Token validation debugging
+    if (user?.token) {
+      try {
+        const tokenParts = user.token.split('.');
+        const tokenPayload = JSON.parse(atob(tokenParts[1]));
+        const tokenExpiryDate = new Date(tokenPayload.exp * 1000);
+        
+        console.log('🎟️ Token debug:', {
+          tokenLength: user.token.length,
+          tokenStart: user.token.substring(0, 20) + '...',
+          tokenPayload,
+          tokenExpiry: tokenExpiryDate,
+          isExpired: tokenExpiryDate < new Date()
+        });
+      } catch (err) {
+        console.error('Token parsing error:', err);
+      }
+    }
     
     fetchLocations();
   }, [user]);
 
   const getAuthHeaders = () => {
-    if (!user?.token) return {};
+    if (!user?.token) {
+      console.warn('⚠️ No auth token available');
+      return {};
+    }
     return {
       'Authorization': `Bearer ${user.token}`,
       'Content-Type': 'application/json'
@@ -33,33 +90,35 @@ const Dashboard = () => {
 
   const fetchLocations = async () => {
     if (!user?.username) {
-      console.log('No user data, skipping locations fetch');
+      console.log('👤 No user data, skipping locations fetch');
       setLoading(false);
       return;
     }
 
     try {
-      console.log('Fetching locations for user:', user.username);
-      console.log('Using headers:', getAuthHeaders());
+      // Step 4: API configuration debugging
+      console.log('🌐 API Configuration:', {
+        baseURL: LOCATIONS_API_URL,
+        fullURL: `${LOCATIONS_API_URL}/locations`,
+        headers: getAuthHeaders()
+      });
       
       const response = await axios.get(`${LOCATIONS_API_URL}/locations`, {
         headers: getAuthHeaders()
       });
-      
-      console.log('Locations response:', response.data);
       
       if (response.data?.locations) {
         setLocations(response.data.locations);
       } else if (Array.isArray(response.data)) {
         setLocations(response.data);
       } else {
-        console.warn('Unexpected locations data format:', response.data);
+        console.warn('⚠️ Unexpected locations data format:', response.data);
         setLocations([]);
       }
       
       setLoading(false);
     } catch (err) {
-      console.error('Error fetching locations:', {
+      console.error('❌ Error fetching locations:', {
         message: err.message,
         status: err.response?.status,
         data: err.response?.data
@@ -67,7 +126,9 @@ const Dashboard = () => {
       
       let errorMessage = 'Failed to fetch locations';
       
-      if (err.response?.status === 403) {
+      if (err.response?.status === 401) {
+        errorMessage = 'Your session has expired. Please log in again.';
+      } else if (err.response?.status === 403) {
         errorMessage = 'Authentication error. Please check your login status.';
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
