@@ -5,9 +5,12 @@ import { useAuth } from "../context/AuthContext";
 const WEBSOCKET_API_URL = process.env.REACT_APP_WEBSOCKET_API;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_BACKOFF_DELAY = 500;
-const CONNECTION_TIMEOUT = 5000; // 5 second timeout
+const CONNECTION_TIMEOUT = 5000;
 
 const WeatherCard = ({ location, onRemove }) => {
+  // Debug log for location structure
+  console.log('WeatherCard received location:', location);
+
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -19,7 +22,6 @@ const WeatherCard = ({ location, onRemove }) => {
   const { user } = useAuth();
 
   const connectWebSocket = () => {
-    // Clear any existing connection and timeouts
     if (wsRef.current) {
       console.log('Closing existing connection');
       wsRef.current.close();
@@ -42,6 +44,13 @@ const WeatherCard = ({ location, onRemove }) => {
       return;
     }
 
+    if (!location?.cityName) {
+      console.error('No city name provided:', location);
+      setError("Location information missing");
+      setLoading(false);
+      return;
+    }
+
     if (attemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
       setError("Unable to establish connection. Please refresh the page.");
       setLoading(false);
@@ -56,7 +65,7 @@ const WeatherCard = ({ location, onRemove }) => {
     console.log("Initiating WebSocket connection...", {
       attempt: attemptRef.current + 1,
       backoffDelay,
-      location: location.name
+      location: location.cityName
     });
 
     reconnectTimeoutRef.current = setTimeout(() => {
@@ -66,7 +75,6 @@ const WeatherCard = ({ location, onRemove }) => {
         )}`;
         const ws = new WebSocket(websocketUrlWithToken);
 
-        // Set connection timeout
         connectionTimeoutRef.current = setTimeout(() => {
           if (ws.readyState !== WebSocket.OPEN) {
             console.log('Connection timeout - closing socket');
@@ -82,27 +90,26 @@ const WeatherCard = ({ location, onRemove }) => {
           setIsConnected(true);
           attemptRef.current = 0;
           
-          // Delay subscription to ensure Lambda is ready
           setTimeout(() => {
-            if (ws.readyState === WebSocket.OPEN && location?.name) {
+            if (ws.readyState === WebSocket.OPEN) {
               try {
                 const message = {
                   action: 'subscribe',
-                  locationName: location.name,
+                  locationName: location.cityName,
                   token: user.token
                 };
-                console.log('Sending subscription message for:', location.name);
+                console.log('Sending subscription message for:', location.cityName);
                 ws.send(JSON.stringify(message));
               } catch (err) {
                 console.error('Error sending subscription:', err);
                 setError("Failed to subscribe to updates");
               }
             }
-          }, 1000); // Increased delay to 1 second
+          }, 1000);
         };
 
         ws.onmessage = (event) => {
-          console.log('Received WebSocket message for:', location.name);
+          console.log('Received WebSocket message for:', location.cityName);
           try {
             const data = JSON.parse(event.data);
             console.log("Parsed message data:", data);
@@ -115,13 +122,13 @@ const WeatherCard = ({ location, onRemove }) => {
 
             if (data.type === "weatherUpdate") {
               const locationData = Array.isArray(data.data)
-                ? data.data.find((d) => d.locationName === location.name)
-                : data.data.locationName === location.name
+                ? data.data.find((d) => d.locationName === location.cityName)
+                : data.data.locationName === location.cityName
                 ? data.data
                 : null;
 
               if (locationData) {
-                console.log('Setting weather data for:', location.name);
+                console.log('Setting weather data for:', location.cityName);
                 setWeather(locationData);
                 setError("");
                 setLoading(false);
@@ -146,7 +153,7 @@ const WeatherCard = ({ location, onRemove }) => {
             code: event.code,
             reason: event.reason,
             wasClean: event.wasClean,
-            location: location.name
+            location: location.cityName
           });
 
           setIsConnected(false);
@@ -168,11 +175,13 @@ const WeatherCard = ({ location, onRemove }) => {
   };
 
   useEffect(() => {
-    console.log('WeatherCard mounted/updated for:', location.name);
-    connectWebSocket();
+    console.log('WeatherCard mounted/updated for:', location?.cityName);
+    if (location?.cityName) {
+      connectWebSocket();
+    }
 
     return () => {
-      console.log('WeatherCard unmounting for:', location.name);
+      console.log('WeatherCard unmounting for:', location?.cityName);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -183,7 +192,7 @@ const WeatherCard = ({ location, onRemove }) => {
         try {
           const message = {
             action: "unsubscribe",
-            locationName: location.name,
+            locationName: location.cityName,
             token: user?.token,
           };
           wsRef.current.send(JSON.stringify(message));
@@ -193,13 +202,13 @@ const WeatherCard = ({ location, onRemove }) => {
         }
       }
     };
-  }, [location.name, user?.token]);
+  }, [location?.cityName, user?.token]);
 
   const handleRefresh = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       const message = {
         action: "getWeather",
-        locationName: location.name,
+        locationName: location.cityName,
         token: user?.token,
       };
       wsRef.current.send(JSON.stringify(message));
@@ -225,7 +234,7 @@ const WeatherCard = ({ location, onRemove }) => {
     <Card className="h-100">
       <Card.Body>
         <Card.Title className="d-flex justify-content-between align-items-start">
-          {location.name}
+          {location.cityName}
           <Button variant="outline-danger" size="sm" onClick={onRemove}>
             Remove
           </Button>
