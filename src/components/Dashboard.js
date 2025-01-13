@@ -270,17 +270,6 @@ const Dashboard = () => {
     );
   };
 
-  {process.env.NODE_ENV !== 'production' && (
-    <Button 
-      variant="secondary" 
-      size="sm" 
-      className="mb-3"
-      onClick={testApiConnection}
-    >
-      Test API Connection
-    </Button>
-  )}
-
   if (!user) {
     return (
       <Container>
@@ -302,6 +291,19 @@ const Dashboard = () => {
   return (
     <Container>
       <DebugPanel />
+
+      {process.env.NODE_ENV !== 'production' && (
+    <Button 
+      variant="secondary" 
+      size="sm" 
+      className="mb-3"
+      onClick={testApiConnection}
+    >
+      Test API Connection
+    </Button>
+  )}
+
+  
       
       <h2 className="mb-4">My Weather Dashboard</h2>
       
