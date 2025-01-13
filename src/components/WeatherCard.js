@@ -138,24 +138,42 @@ const WeatherCard = ({ location, onRemove }) => {
               let locationData = null;
               
               if (Array.isArray(data.data)) {
-                locationData = data.data.find(d => d.locationName === location.city_name);
+                // Try matching with various possible properties
+                locationData = data.data.find(d => 
+                  d.locationName === location.city_name || 
+                  d.name === location.city_name || 
+                  d.locationName === location.name
+                );
+                
                 console.log('Searching array for location:', {
                   searchingFor: location.city_name,
                   found: !!locationData,
-                  availableLocations: data.data.map(d => d.locationName)
+                  availableLocations: data.data.map(d => ({
+                    locationName: d.locationName,
+                    name: d.name
+                  }))
                 });
               } else {
-                locationData = data.data.locationName === location.city_name ? data.data : null;
+                // Check for single location with multiple possible matching criteria
+                locationData = (
+                  data.data.locationName === location.city_name || 
+                  data.data.name === location.city_name || 
+                  data.data.locationName === location.name
+                ) ? data.data : null;
+                
                 console.log('Checking single location:', {
                   searchingFor: location.city_name,
-                  receivedLocation: data.data.locationName,
-                  matches: data.data.locationName === location.city_name
+                  receivedLocation: data.data.locationName || data.data.name,
+                  matches: (
+                    data.data.locationName === location.city_name || 
+                    data.data.name === location.city_name
+                  )
                 });
               }
-
+            
               if (locationData) {
                 console.log('Setting weather data:', locationData);
-                setWeather(locationData);
+                setWeather(locationData.weather || locationData);
                 setError("");
                 setLoading(false);
               } else {
