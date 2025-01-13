@@ -170,12 +170,12 @@ const WeatherCard = ({ location, onRemove }) => {
     };
 
     const getLoadingMessage = () => {
-        if (connectionStatus === 'connecting' && connectAttempt > 0) {
-            return `Connecting (Attempt ${connectAttempt}/${MAX_RECONNECT_ATTEMPTS})...`;
+        if (attemptRef.current > 0) {
+            return `Connecting (Attempt ${attemptRef.current}/${MAX_RECONNECT_ATTEMPTS})...`;
         }
         return 'Loading...';
     };
-
+    
     if (loading) {
         return (
             <Card className="h-100">
