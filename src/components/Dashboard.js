@@ -172,32 +172,67 @@ const Dashboard = () => {
   const addLocation = async (e) => {
     e.preventDefault();
     if (!newLocation.trim() || !user?.username) return;
-
+  
     try {
-      const response = await axios.post(`${LOCATIONS_API_URL}/locations`, {
-        location: newLocation.trim()
-      }, {
+      // Use a geocoding service to get location details
+      const geocodingResponse = await axios.get(`https://nominatim.openstreetmap.org/search`, {
+        params: {
+          q: newLocation.trim(),
+          format: 'json',
+          limit: 1
+        }
+      });
+  
+      const locationData = geocodingResponse.data[0];
+  
+      if (!locationData) {
+        setError('Could not find location details');
+        return;
+      }
+  
+      const newLocationData = {
+        cityName: locationData.display_name.split(',')[0].trim(),
+        countryCode: getCountryCode(locationData.display_name),
+        latitude: parseFloat(locationData.lat),
+        longitude: parseFloat(locationData.lon)
+      };
+  
+      const response = await axios.post(`${LOCATIONS_API_URL}/locations`, newLocationData, {
         headers: getAuthHeaders()
       });
-      
-      let addedLocation;
-      if (response.data?.location) {
-        addedLocation = response.data.location;
-      } else if (response.data?.id) {
-        addedLocation = response.data;
-      } else {
-        throw new Error('Invalid location data received from server');
-      }
-      
+  
+      // Adjust based on actual response structure
+      const addedLocation = response.data.location_id 
+        ? { 
+            location_id: response.data.location_id, 
+            ...newLocationData 
+          } 
+        : response.data;
+  
       setLocations(prevLocations => [...prevLocations, addedLocation]);
       setNewLocation('');
       setError('');
-      
       fetchLocations();
     } catch (err) {
       console.error('Error adding location:', err);
       setError(err.response?.data?.message || 'Failed to add location');
     }
+  };
+  
+  // Utility function to extract country code
+  const getCountryCode = (displayName) => {
+    const parts = displayName.split(',');
+    const countryPart = parts[parts.length - 1].trim();
+    
+    // Mapping of country names to country codes (you'd want a more comprehensive mapping)
+    const countryCodeMap = {
+      'United States': 'US',
+      'Canada': 'CA',
+      'United Kingdom': 'GB',
+      // Add more mappings as needed
+    };
+  
+    return countryCodeMap[countryPart] || 'Unknown';
   };
 
   const removeLocation = async (locationId) => {
