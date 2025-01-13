@@ -228,37 +228,60 @@ const WeatherCard = ({ location, onRemove }) => {
                         Remove
                     </Button>
                 </Card.Title>
-                <Card.Text as="div">
-                    {weather ? (
-                        <>
-                            <div className="mb-2">
-                                <strong>Temperature:</strong> {weather.temperature}°C
-                            </div>
-                            <div className="mb-2">
-                                <strong>Condition:</strong> {weather.condition}
-                            </div>
-                            <div className="mb-2">
-                                <strong>Humidity:</strong> {weather.humidity}%
-                            </div>
-                            <div>
-                                <strong>Wind Speed:</strong> {weather.windSpeed} km/h
-                            </div>
-                        </>
-                    ) : (
-                        <div className="text-muted">No weather data available</div>
-                    )}
-                </Card.Text>
-                <div className="text-muted mt-3">
-                    <small>Last updated: {weather?.timestamp ? new Date(weather.timestamp).toLocaleTimeString() : 'Never'}</small>
-                </div>
-                <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={handleRefresh}
-                    className="mt-2"
-                >
-                    Refresh
-                </Button>
+                {loading ? (
+                    <div className="text-center">
+                        <Spinner animation="border" role="status" className="mb-2" />
+                        <div>{`Connecting (Attempt ${attemptRef.current + 1}/${MAX_RECONNECT_ATTEMPTS})...`}</div>
+                    </div>
+                ) : error ? (
+                    <>
+                        <div className="text-danger my-3">{error}</div>
+                        <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={handleRefresh}
+                            className="mt-2"
+                        >
+                            Retry
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <Card.Text as="div">
+                            {weather ? (
+                                <>
+                                    <div className="mb-2">
+                                        <strong>Temperature:</strong> {weather.temperature}°C
+                                    </div>
+                                    <div className="mb-2">
+                                        <strong>Condition:</strong> {weather.condition}
+                                    </div>
+                                    <div className="mb-2">
+                                        <strong>Humidity:</strong> {weather.humidity}%
+                                    </div>
+                                    <div>
+                                        <strong>Wind Speed:</strong> {weather.windSpeed} km/h
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-muted">No weather data available</div>
+                            )}
+                        </Card.Text>
+                        <div className="text-muted mt-3">
+                            <small>
+                                Last updated: {weather?.timestamp ? new Date(weather.timestamp).toLocaleTimeString() : 'Never'}
+                            </small>
+                        </div>
+                        <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={handleRefresh}
+                            className="mt-2"
+                        >
+                            Refresh
+                        </Button>
+                    </>
+                )}
             </Card.Body>
         </Card>
     );
