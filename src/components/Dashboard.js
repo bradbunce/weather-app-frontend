@@ -16,10 +16,15 @@ const Dashboard = () => {
   // Step 1: Add axios interceptors for request/response debugging
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use(request => {
+      // Check if Authorization header matches the user's token
+      const currentToken = user?.token;
+      const requestToken = request.headers?.Authorization?.replace('Bearer ', '');
+      
       console.log('🚀 Starting Request:', {
         url: request.url,
         method: request.method,
-        headers: request.headers
+        headers: request.headers,
+        tokenMatch: currentToken === requestToken
       });
       return request;
     });
@@ -34,7 +39,12 @@ const Dashboard = () => {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
-          headers: error.response?.headers
+          headers: error.response?.headers,
+          corsHeaders: {
+            'Access-Control-Allow-Origin': error.response?.headers?.['access-control-allow-origin'],
+            'Access-Control-Allow-Headers': error.response?.headers?.['access-control-allow-headers'],
+            'Access-Control-Allow-Methods': error.response?.headers?.['access-control-allow-methods']
+          }
         });
         return Promise.reject(error);
       }
@@ -45,7 +55,7 @@ const Dashboard = () => {
       axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, []);
+  }, [user?.token]);
 
   useEffect(() => {
     // Step 2: Enhanced auth debugging
@@ -55,11 +65,11 @@ const Dashboard = () => {
       hasToken: !!user?.token
     });
 
-    // Step 3: Token validation debugging
+    // Step 3: Token validation and structure debugging
     if (user?.token) {
       try {
-        const tokenParts = user.token.split('.');
-        const tokenPayload = JSON.parse(atob(tokenParts[1]));
+        const [header, payload, signature] = user.token.split('.');
+        const tokenPayload = JSON.parse(atob(payload));
         const tokenExpiryDate = new Date(tokenPayload.exp * 1000);
         
         console.log('🎟️ Token debug:', {
@@ -69,6 +79,21 @@ const Dashboard = () => {
           tokenExpiry: tokenExpiryDate,
           isExpired: tokenExpiryDate < new Date()
         });
+
+        console.log('🔍 Token Structure:', {
+          header: JSON.parse(atob(header)),
+          payload: tokenPayload,
+          signatureLength: signature.length
+        });
+
+        // Check if token in localStorage matches
+        const storedToken = localStorage.getItem('authToken');
+        console.log('💾 Token Storage Check:', {
+          tokensMatch: storedToken === user.token,
+          userTokenLength: user.token?.length,
+          storedTokenLength: storedToken?.length
+        });
+
       } catch (err) {
         console.error('Token parsing error:', err);
       }
@@ -82,8 +107,13 @@ const Dashboard = () => {
       console.warn('⚠️ No auth token available');
       return {};
     }
+    // Get the token directly from localStorage to ensure freshness
+    const freshToken = localStorage.getItem('authToken');
+    if (freshToken !== user.token) {
+      console.warn('⚠️ Token mismatch between user object and localStorage');
+    }
     return {
-      'Authorization': `Bearer ${user.token}`,
+      'Authorization': `Bearer ${freshToken || user.token}`,
       'Content-Type': 'application/json'
     };
   };
@@ -144,17 +174,11 @@ const Dashboard = () => {
     if (!newLocation.trim() || !user?.username) return;
 
     try {
-      console.log('Adding location:', {
-        location: newLocation.trim()
-      });
-      
       const response = await axios.post(`${LOCATIONS_API_URL}/locations`, {
         location: newLocation.trim()
       }, {
         headers: getAuthHeaders()
       });
-      
-      console.log('Add location response:', response.data);
       
       let addedLocation;
       if (response.data?.location) {
@@ -162,7 +186,6 @@ const Dashboard = () => {
       } else if (response.data?.id) {
         addedLocation = response.data;
       } else {
-        console.error('Invalid location data received:', response.data);
         throw new Error('Invalid location data received from server');
       }
       
@@ -170,24 +193,10 @@ const Dashboard = () => {
       setNewLocation('');
       setError('');
       
-      // Refresh locations list to ensure consistency
       fetchLocations();
     } catch (err) {
-      console.error('Error adding location:', {
-        message: err.message,
-        status: err.response?.status,
-        data: err.response?.data
-      });
-      
-      let errorMessage = 'Failed to add location';
-      
-      if (err.response?.status === 403) {
-        errorMessage = 'Authentication error. Please try logging in again.';
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      }
-      
-      setError(errorMessage);
+      console.error('Error adding location:', err);
+      setError(err.response?.data?.message || 'Failed to add location');
     }
   };
 
@@ -195,8 +204,6 @@ const Dashboard = () => {
     if (!user?.username) return;
 
     try {
-      console.log('Removing location:', locationId);
-      
       await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`, {
         headers: getAuthHeaders()
       });
@@ -205,25 +212,10 @@ const Dashboard = () => {
         prevLocations.filter(loc => loc.id !== locationId)
       );
       
-      // Refresh locations list to ensure consistency
       fetchLocations();
     } catch (err) {
-      console.error('Error removing location:', {
-        locationId,
-        message: err.message,
-        status: err.response?.status,
-        data: err.response?.data
-      });
-      
-      let errorMessage = 'Failed to remove location';
-      
-      if (err.response?.status === 403) {
-        errorMessage = 'Authentication error. Please try logging in again.';
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      }
-      
-      setError(errorMessage);
+      console.error('Error removing location:', err);
+      setError(err.response?.data?.message || 'Failed to remove location');
     }
   };
 
