@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import jwt from 'jsonwebtoken';
+import jwt_decode from 'jwt-decode';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = 'authToken';
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
       console.log('TOKEN DETAILS:', {
         tokenLength: token.length,
         tokenStart: token.substring(0, 20),
-        decodedPayload: jwt.decode(token)
+        decodedPayload: jwt_decode(token)
       });
 
       if (!token || !userData) {
