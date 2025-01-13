@@ -184,6 +184,42 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
     };
   }, [connectionParams, connectWebSocket, cleanupWebSocket]);
 
+  useEffect(() => {
+    const handleLogout = () => {
+      // Close WebSocket connection
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+          wsRef.current = null;
+        } catch (error) {
+          console.error('Error closing WebSocket on logout:', error);
+        }
+      }
+
+      // Reset all states
+      setWeather(null);
+      setLoading(false);
+      setError("");
+      setIsConnected(false);
+
+      // Clear all timeouts
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+    };
+
+    // If user is null, it means logout has occurred
+    if (!user) {
+      handleLogout();
+    }
+  }, [user]);
+
   // Refresh handler
   const handleRefresh = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
