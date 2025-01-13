@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, Button, Spinner } from "react-bootstrap";
 import { useAuth } from "../context/AuthContext";
 
@@ -7,27 +7,35 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_BACKOFF_DELAY = 500;
 const CONNECTION_TIMEOUT = 5000;
 
-const WeatherCard = ({ location, onRemove }) => {
-  console.log('WeatherCard received location:', location);
+const WeatherCard = React.memo(({ location, onRemove }) => {
+  const { user } = useAuth();
   
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+
   const wsRef = useRef(null);
   const attemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
   const connectionTimeoutRef = useRef(null);
-  const { user } = useAuth();
 
-  const connectWebSocket = () => {
-    // Clear any existing connection and timeouts
-    if (wsRef.current) {
-      console.log('Closing existing connection');
-      wsRef.current.close();
-      wsRef.current = null;
-    }
+  // Memoized connection parameters to prevent unnecessary reconnects
+  const connectionParams = useMemo(() => ({
+    token: user?.token,
+    cityName: location?.city_name,
+    countryCode: location?.country_code
+  }), [user?.token, location?.city_name, location?.country_code]);
 
+  // Centralized error handling
+  const handleError = useCallback((errorMessage) => {
+    setError(errorMessage);
+    setLoading(false);
+    setIsConnected(false);
+  }, []);
+
+  // Clean up WebSocket connections
+  const cleanupWebSocket = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -38,172 +46,104 @@ const WeatherCard = ({ location, onRemove }) => {
       connectionTimeoutRef.current = null;
     }
 
-    if (!user?.token) {
-      setError("Authentication required");
-      setLoading(false);
-      return;
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  }, []);
+
+  // WebSocket connection logic
+  const connectWebSocket = useCallback(() => {
+    // Validation checks
+    if (!connectionParams.token) {
+      return handleError("Authentication required");
     }
 
-    if (!location?.city_name) {
-      console.error('No city name provided:', location);
-      setError("Location information missing");
-      setLoading(false);
-      return;
+    if (!connectionParams.cityName) {
+      return handleError("Location information missing");
     }
 
     if (attemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
-      setError("Unable to establish connection. Please refresh the page.");
-      setLoading(false);
-      return;
+      return handleError("Unable to establish connection. Please refresh the page.");
     }
+
+    cleanupWebSocket();
 
     const backoffDelay = Math.min(
       INITIAL_BACKOFF_DELAY * Math.pow(2, attemptRef.current),
       10000
     );
 
-    console.log("Initiating WebSocket connection...", {
-      attempt: attemptRef.current + 1,
-      backoffDelay,
-      location: location.city_name,
-      wsUrl: WEBSOCKET_API_URL
-    });
-
     reconnectTimeoutRef.current = setTimeout(() => {
       try {
-        const websocketUrlWithToken = `${WEBSOCKET_API_URL}?token=${encodeURIComponent(
-          user.token
-        )}`;
-        console.log('Connecting to WebSocket URL:', websocketUrlWithToken);
-        
-        const ws = new WebSocket(websocketUrlWithToken);
+        const websocketUrl = `${WEBSOCKET_API_URL}?token=${encodeURIComponent(connectionParams.token)}`;
+        const ws = new WebSocket(websocketUrl);
 
+        // Connection timeout
         connectionTimeoutRef.current = setTimeout(() => {
           if (ws.readyState !== WebSocket.OPEN) {
-            console.log('Connection timeout - closing socket');
             ws.close();
-            setError("Connection timeout");
-            setLoading(false);
+            handleError("Connection timeout");
           }
         }, CONNECTION_TIMEOUT);
 
+        // WebSocket event handlers
         ws.onopen = () => {
-          console.log('WebSocket connected successfully');
           clearTimeout(connectionTimeoutRef.current);
           setIsConnected(true);
           attemptRef.current = 0;
-          
+
+          // Send subscription after a short delay
           setTimeout(() => {
             if (ws.readyState === WebSocket.OPEN) {
               try {
-                const message = {
+                ws.send(JSON.stringify({
                   action: 'subscribe',
-                  locationName: location.city_name,
-                  countryCode: location.country_code,
-                  token: user.token
-                };
-                console.log('Sending subscription message:', message);
-                ws.send(JSON.stringify(message));
+                  locationName: connectionParams.cityName,
+                  countryCode: connectionParams.countryCode,
+                  token: connectionParams.token
+                }));
               } catch (err) {
-                console.error('Error sending subscription:', err);
-                setError("Failed to subscribe to updates");
+                handleError("Failed to subscribe to updates");
               }
-            } else {
-              console.log('WebSocket not ready for subscription:', {
-                readyState: ws.readyState,
-                location: location.city_name
-              });
             }
           }, 1000);
         };
 
+        // Process incoming messages
         ws.onmessage = (event) => {
-          console.log('Raw WebSocket message received:', event.data);
           try {
             const data = JSON.parse(event.data);
-            console.log("Parsed WebSocket message:", {
-              type: data.type,
-              locationMatch: data.data?.locationName === location.city_name,
-              data: data
-            });
-
+            
             if (data.type === "error") {
-              console.error('WebSocket error message:', data.message);
-              setError(data.message);
-              setLoading(false);
-              return;
+              return handleError(data.message);
             }
 
             if (data.type === "weatherUpdate") {
-              let locationData = null;
-              
-              if (Array.isArray(data.data)) {
-                // Try matching with various possible properties
-                locationData = data.data.find(d => 
-                  d.locationName === location.city_name || 
-                  d.name === location.city_name || 
-                  d.locationName === location.name
-                );
-                
-                console.log('Searching array for location:', {
-                  searchingFor: location.city_name,
-                  found: !!locationData,
-                  availableLocations: data.data.map(d => ({
-                    locationName: d.locationName,
-                    name: d.name
-                  }))
-                });
-              } else {
-                // Check for single location with multiple possible matching criteria
-                locationData = (
-                  data.data.locationName === location.city_name || 
-                  data.data.name === location.city_name || 
-                  data.data.locationName === location.name
-                ) ? data.data : null;
-                
-                console.log('Checking single location:', {
-                  searchingFor: location.city_name,
-                  receivedLocation: data.data.locationName || data.data.name,
-                  matches: (
-                    data.data.locationName === location.city_name || 
-                    data.data.name === location.city_name
+              const locationData = Array.isArray(data.data)
+                ? data.data.find(d => 
+                    d.name === connectionParams.cityName || 
+                    d.locationName === connectionParams.cityName
                   )
-                });
-              }
-            
+                : data.data;
+
               if (locationData) {
-                console.log('Setting weather data:', locationData);
                 setWeather(locationData.weather || locationData);
                 setError("");
                 setLoading(false);
               } else {
-                console.log('No matching location data found in response');
-                setError("No data available for this location");
-                setLoading(false);
+                handleError("No data available for this location");
               }
             }
           } catch (err) {
-            console.error("Error processing WebSocket message:", err);
-            setError("Error processing weather data");
-            setLoading(false);
+            handleError("Error processing weather data");
           }
         };
 
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
-          setError("Connection error");
-          setLoading(false);
-          setIsConnected(false);
-        };
-
+        // Error and close handlers
+        ws.onerror = () => handleError("Connection error");
+        
         ws.onclose = (event) => {
-          console.log("WebSocket closed:", {
-            code: event.code,
-            reason: event.reason,
-            wasClean: event.wasClean,
-            location: location.city_name
-          });
-
           setIsConnected(false);
           wsRef.current = null;
 
@@ -214,71 +154,120 @@ const WeatherCard = ({ location, onRemove }) => {
         };
 
         wsRef.current = ws;
-      } catch (connectionError) {
-        console.error("WebSocket connection failed:", connectionError);
-        setError("Failed to establish connection");
-        setLoading(false);
+      } catch {
+        handleError("Failed to establish connection");
       }
     }, backoffDelay);
-  };
+  }, [connectionParams, handleError, cleanupWebSocket]);
 
+  // Main connection effect
   useEffect(() => {
-    console.log('WeatherCard mounted/updated for:', location?.city_name);
-    if (location?.city_name) {
+    if (connectionParams.cityName) {
       connectWebSocket();
     }
 
     return () => {
-      console.log('WeatherCard unmounting for:', location?.city_name);
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-      }
+      cleanupWebSocket();
+      
+      // Attempt to unsubscribe if possible
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         try {
-          const message = {
+          wsRef.current.send(JSON.stringify({
             action: "unsubscribe",
-            locationName: location.city_name,
-            countryCode: location.country_code,
-            token: user?.token,
-          };
-          wsRef.current.send(JSON.stringify(message));
+            locationName: connectionParams.cityName,
+            countryCode: connectionParams.countryCode,
+            token: connectionParams.token,
+          }));
           wsRef.current.close();
-        } catch (err) {
-          console.error('Error during cleanup:', err);
-        }
+        } catch {}
       }
     };
-  }, [location?.city_name, user?.token]);
+  }, [connectionParams, connectWebSocket, cleanupWebSocket]);
 
-  const handleRefresh = () => {
+  // Refresh handler
+  const handleRefresh = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const message = {
+      wsRef.current.send(JSON.stringify({
         action: "getWeather",
-        locationName: location.city_name,
-        countryCode: location.country_code,
-        token: user?.token,
-      };
-      wsRef.current.send(JSON.stringify(message));
+        locationName: connectionParams.cityName,
+        countryCode: connectionParams.countryCode,
+        token: connectionParams.token,
+      }));
       setLoading(true);
     } else {
-      setError("Connection lost. Attempting to reconnect...");
+      handleError("Connection lost. Attempting to reconnect...");
       attemptRef.current = 0;
       connectWebSocket();
     }
-  };
+  }, [connectionParams, handleError, connectWebSocket]);
 
-  const getLoadingMessage = () => {
-    if (!isConnected) {
-      return "Connecting to server...";
-    }
-    if (attemptRef.current > 0) {
-      return `Reconnecting (Attempt ${attemptRef.current}/${MAX_RECONNECT_ATTEMPTS})...`;
-    }
+  // Loading message generator
+  const getLoadingMessage = useMemo(() => {
+    if (!isConnected) return "Connecting to server...";
+    if (attemptRef.current > 0) return `Reconnecting (Attempt ${attemptRef.current}/${MAX_RECONNECT_ATTEMPTS})...`;
     return "Loading weather data...";
-  };
+  }, [isConnected]);
+
+  // Render weather details
+  const renderWeatherDetails = useMemo(() => {
+    if (loading) return (
+      <div className="text-center">
+        <Spinner animation="border" role="status" className="mb-2" />
+        <div>{getLoadingMessage}</div>
+      </div>
+    );
+
+    if (error) return (
+      <>
+        <div className="text-danger my-3">{error}</div>
+        <Button
+          variant="outline-primary"
+          size="sm"
+          onClick={handleRefresh}
+          className="mt-2"
+        >
+          Retry
+        </Button>
+      </>
+    );
+
+    return weather ? (
+      <>
+        <Card.Text as="div">
+          <div className="mb-2">
+            <strong>Temperature:</strong> {weather.temperature}°C
+          </div>
+          <div className="mb-2">
+            <strong>Condition:</strong> {weather.condition}
+          </div>
+          <div className="mb-2">
+            <strong>Humidity:</strong> {weather.humidity}%
+          </div>
+          <div>
+            <strong>Wind Speed:</strong> {weather.windSpeed} km/h
+          </div>
+        </Card.Text>
+        <div className="text-muted mt-3">
+          <small>
+            Last updated:{" "}
+            {weather.timestamp
+              ? new Date(weather.timestamp).toLocaleTimeString()
+              : "Never"}
+          </small>
+        </div>
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          onClick={handleRefresh}
+          className="mt-2"
+        >
+          Refresh
+        </Button>
+      </>
+    ) : (
+      <div className="text-muted">No weather data available</div>
+    );
+  }, [weather, loading, error, getLoadingMessage, handleRefresh]);
 
   return (
     <Card className="h-100">
@@ -289,66 +278,10 @@ const WeatherCard = ({ location, onRemove }) => {
             Remove
           </Button>
         </Card.Title>
-        {loading ? (
-          <div className="text-center">
-            <Spinner animation="border" role="status" className="mb-2" />
-            <div>{getLoadingMessage()}</div>
-          </div>
-        ) : error ? (
-          <>
-            <div className="text-danger my-3">{error}</div>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={handleRefresh}
-              className="mt-2"
-            >
-              Retry
-            </Button>
-          </>
-        ) : (
-          <>
-            <Card.Text as="div">
-              {weather ? (
-                <>
-                  <div className="mb-2">
-                    <strong>Temperature:</strong> {weather.temperature}°C
-                  </div>
-                  <div className="mb-2">
-                    <strong>Condition:</strong> {weather.condition}
-                  </div>
-                  <div className="mb-2">
-                    <strong>Humidity:</strong> {weather.humidity}%
-                  </div>
-                  <div>
-                    <strong>Wind Speed:</strong> {weather.windSpeed} km/h
-                  </div>
-                </>
-              ) : (
-                <div className="text-muted">No weather data available</div>
-              )}
-            </Card.Text>
-            <div className="text-muted mt-3">
-              <small>
-                Last updated:{" "}
-                {weather?.timestamp
-                  ? new Date(weather.timestamp).toLocaleTimeString()
-                  : "Never"}
-              </small>
-            </div>
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={handleRefresh}
-              className="mt-2"
-            >
-              Refresh
-            </Button>
-          </>
-        )}
+        {renderWeatherDetails}
       </Card.Body>
     </Card>
   );
-};
+});
 
 export default WeatherCard;
