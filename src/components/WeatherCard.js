@@ -15,58 +15,84 @@ const WeatherCard = ({ location, onRemove }) => {
         let websocket = null;
         
         const connectWebSocket = () => {
-            console.log('Connecting to WebSocket...');
-            websocket = new WebSocket(WEBSOCKET_API_URL);
-
-            websocket.onopen = () => {
-                console.log('WebSocket connected');
-                // Subscribe to weather updates for this location
-                if (location?.name) {
-                    const message = {
-                        action: 'subscribe',
-                        locationName: location.name,
-                        token: user?.token
-                    };
-                    websocket.send(JSON.stringify(message));
-                }
-            };
-
-            websocket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    console.log('Received weather data:', data);
-
-                    if (data.error) {
-                        setError(data.error);
-                        setLoading(false);
-                        return;
-                    }
-
-                    if (data.locationName === location.name) {
-                        setWeather(data);
-                        setError('');
-                        setLoading(false);
-                    }
-                } catch (err) {
-                    console.error('Error parsing WebSocket message:', err);
-                    setError('Error processing weather data');
-                    setLoading(false);
-                }
-            };
-
-            websocket.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                setError('Connection error');
+            // Verify we have a token
+            if (!user?.token) {
+                console.error('No authentication token available');
+                setError('Authentication required');
                 setLoading(false);
-            };
+                return;
+            }
 
-            websocket.onclose = () => {
-                console.log('WebSocket disconnected');
-                // Attempt to reconnect after a delay
-                setTimeout(connectWebSocket, 3000);
-            };
+            console.log('Connecting to WebSocket...', {
+                baseUrl: WEBSOCKET_API_URL,
+                tokenLength: user.token.length
+            });
 
-            setWs(websocket);
+            // Append token as a query parameter
+            const websocketUrlWithToken = `${WEBSOCKET_API_URL}?token=${encodeURIComponent(user.token)}`;
+
+            try {
+                websocket = new WebSocket(websocketUrlWithToken);
+
+                websocket.onopen = () => {
+                    console.log('WebSocket connected successfully');
+                    
+                    // Subscribe to weather updates for this location
+                    if (location?.name) {
+                        const message = {
+                            action: 'subscribe',
+                            locationName: location.name
+                        };
+                        websocket.send(JSON.stringify(message));
+                    }
+                };
+
+                websocket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Received weather data:', data);
+
+                        if (data.error) {
+                            setError(data.error);
+                            setLoading(false);
+                            return;
+                        }
+
+                        if (data.locationName === location.name) {
+                            setWeather(data);
+                            setError('');
+                            setLoading(false);
+                        }
+                    } catch (err) {
+                        console.error('Error parsing WebSocket message:', err);
+                        setError('Error processing weather data');
+                        setLoading(false);
+                    }
+                };
+
+                websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    setError('Connection error');
+                    setLoading(false);
+                };
+
+                websocket.onclose = (event) => {
+                    console.log('WebSocket disconnected:', {
+                        code: event.code,
+                        reason: event.reason,
+                        wasClean: event.wasClean
+                    });
+                    
+                    // Attempt to reconnect after a delay
+                    setTimeout(connectWebSocket, 3000);
+                };
+
+                setWs(websocket);
+            } catch (connectionError) {
+                console.error('WebSocket connection failed:', connectionError);
+                setError('Failed to establish WebSocket connection');
+                setLoading(false);
+            }
         };
 
         connectWebSocket();
@@ -78,8 +104,7 @@ const WeatherCard = ({ location, onRemove }) => {
                 if (websocket.readyState === WebSocket.OPEN) {
                     const message = {
                         action: 'unsubscribe',
-                        locationName: location.name,
-                        token: user?.token
+                        locationName: location.name
                     };
                     websocket.send(JSON.stringify(message));
                 }
@@ -93,8 +118,7 @@ const WeatherCard = ({ location, onRemove }) => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             const message = {
                 action: 'getData',
-                locationName: location.name,
-                token: user?.token
+                locationName: location.name
             };
             ws.send(JSON.stringify(message));
             setLoading(true);
@@ -103,6 +127,7 @@ const WeatherCard = ({ location, onRemove }) => {
         }
     };
 
+    // Render methods remain the same as in the original component
     if (loading) {
         return (
             <Card className="h-100">
