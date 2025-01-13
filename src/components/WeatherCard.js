@@ -92,6 +92,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
           clearTimeout(connectionTimeoutRef.current);
           setIsConnected(true);
           attemptRef.current = 0;
+          wsRef.current.setAttribute('data-websocket-active', 'true');
 
           // Send subscription after a short delay
           setTimeout(() => {
@@ -146,6 +147,10 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
         ws.onclose = (event) => {
           setIsConnected(false);
           wsRef.current = null;
+
+          if (wsRef.current) {
+            wsRef.current.removeAttribute('data-websocket-active');
+          }
 
           if (event.code !== 1000) {
             attemptRef.current++;

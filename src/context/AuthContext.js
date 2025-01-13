@@ -131,6 +131,20 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Close WebSocket connections first
+      const closeWebSocketConnections = () => {
+        const websockets = document.querySelectorAll('*[data-websocket-active="true"]');
+        websockets.forEach(ws => {
+          try {
+            ws.dispatchEvent(new Event('close'));
+          } catch (error) {
+            console.error('Error closing WebSocket:', error);
+          }
+        });
+      };
+  
+      closeWebSocketConnections();
+  
       const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
       if (currentToken) {
         await axios.post(`${AUTH_API_URL}/logout`, {}, {
