@@ -26,7 +26,7 @@ const Dashboard = () => {
   const getAuthHeaders = () => {
     if (!user?.token) return {};
     return {
-      'Authorization': `Bearer ${user.token}`,  // Match the token validation regex
+      'Authorization': `Bearer ${user.token}`,
       'Content-Type': 'application/json'
     };
   };
@@ -42,7 +42,7 @@ const Dashboard = () => {
       console.log('Fetching locations for user:', user.username);
       console.log('Using headers:', getAuthHeaders());
       
-      const response = await axios.get(`${LOCATIONS_API_URL}/locations/${user.username}`, {
+      const response = await axios.get(`${LOCATIONS_API_URL}/locations`, {
         headers: getAuthHeaders()
       });
       
@@ -84,18 +84,13 @@ const Dashboard = () => {
 
     try {
       console.log('Adding location:', {
-        username: user.username,
         location: newLocation.trim()
       });
       
       const response = await axios.post(`${LOCATIONS_API_URL}/locations`, {
-        username: user.username,
         location: newLocation.trim()
       }, {
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders()
       });
       
       console.log('Add location response:', response.data);
@@ -142,10 +137,7 @@ const Dashboard = () => {
       console.log('Removing location:', locationId);
       
       await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`, {
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders()
       });
       
       setLocations(prevLocations => 
