@@ -94,10 +94,10 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
           setIsConnected(true);
           attemptRef.current = 0;
           
-          // Track WebSocket via a global set or custom attribute on window
+          // Track WebSocket via a global set
           window.activeWebSockets = window.activeWebSockets || new Set();
           window.activeWebSockets.add(ws);
-         
+        
           // Send subscription after a short delay
           setTimeout(() => {
             if (ws.readyState === WebSocket.OPEN) {
@@ -113,7 +113,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
               }
             }
           }, 1000);
-         };
+        };
 
         // Process incoming messages
         ws.onmessage = (event) => {
@@ -149,13 +149,15 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
         ws.onerror = () => handleError("Connection error");
         
         ws.onclose = (event) => {
+          // Remove from active WebSockets
+          if (window.activeWebSockets) {
+            window.activeWebSockets.delete(ws);
+          }
+        
+          // Existing onclose logic remains the same
           setIsConnected(false);
           wsRef.current = null;
-
-          if (wsRef.current) {
-            wsRef.current.removeAttribute('data-websocket-active');
-          }
-
+        
           if (event.code !== 1000) {
             attemptRef.current++;
             connectWebSocket();

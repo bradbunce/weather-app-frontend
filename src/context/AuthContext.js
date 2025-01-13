@@ -132,30 +132,34 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       // Close WebSocket connections first
-      const closeWebSocketConnections = () => {
-        const websockets = document.querySelectorAll('*[data-websocket-active="true"]');
-        websockets.forEach(ws => {
+      if (window.activeWebSockets) {
+        console.log(`Closing ${window.activeWebSockets.size} active WebSocket connections`);
+        window.activeWebSockets.forEach(ws => {
           try {
-            ws.dispatchEvent(new Event('close'));
+            ws.close();
           } catch (error) {
             console.error('Error closing WebSocket:', error);
           }
         });
-      };
-  
-      closeWebSocketConnections();
+        window.activeWebSockets.clear();
+      }
   
       const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
       if (currentToken) {
-        await axios.post(`${AUTH_API_URL}/logout`, {}, {
-          headers: {
-            Authorization: formatTokenForApi(currentToken, true)
-          }
-        });
+        try {
+          await axios.post(`${AUTH_API_URL}/logout`, {}, {
+            headers: {
+              Authorization: formatTokenForApi(currentToken, true)
+            }
+          });
+        } catch (error) {
+          console.warn('Logout API notification failed:', error.message);
+        }
       }
     } catch (error) {
-      console.warn('Logout notification failed:', error.message);
+      console.error('Logout process encountered an error:', error);
     } finally {
+      // Clear user state and authentication
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
