@@ -228,10 +228,10 @@ const WeatherCard = ({ location, onRemove }) => {
                         Remove
                     </Button>
                 </Card.Title>
-                {loading ? (
+                                    {loading ? (
                     <div className="text-center">
                         <Spinner animation="border" role="status" className="mb-2" />
-                        <div>{`Connecting (Attempt ${attemptRef.current + 1}/${MAX_RECONNECT_ATTEMPTS})...`}</div>
+                        <div>Loading weather data...</div>
                     </div>
                 ) : error ? (
                     <>
