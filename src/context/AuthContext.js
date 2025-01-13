@@ -52,7 +52,6 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       setIsLoading(true);
-      
       const response = await axios.post(
         `${AUTH_API_URL}/login`,
         {
@@ -65,27 +64,40 @@ export const AuthProvider = ({ children }) => {
           }
         }
       );
-
-      const responseData = typeof response.data === 'string' 
-        ? JSON.parse(response.data) 
+  
+      const responseData = typeof response.data === 'string'
+        ? JSON.parse(response.data)
         : response.data;
-
+  
       if (responseData.error) {
         throw new Error(responseData.error);
       }
-
+  
       const { token, user: userData } = responseData;
-
+  
+      // Manual token inspection
       console.log('TOKEN DETAILS:', {
         tokenLength: token.length,
         tokenStart: token.substring(0, 20),
-        decodedPayload: jwt_decode(token)
+        tokenParts: token.split('.').map((part, index) => {
+          if (index === 2) return 'Signature';
+          try {
+            // Decode base64 and parse JSON
+            const decodedPart = atob(
+              part.replace(/-/g, '+').replace(/_/g, '/')
+                .padEnd(part.length + (4 - part.length % 4) % 4, '=')
+            );
+            return JSON.parse(decodedPart);
+          } catch (error) {
+            return 'Decoding Failed';
+          }
+        })
       });
-
+  
       if (!token || !userData) {
         throw new Error('Invalid response format from server');
       }
-
+  
       // Store raw token
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
       // Include raw token in user object
@@ -93,7 +105,7 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       // Use Bearer prefix for default axios headers
       axios.defaults.headers.common['Authorization'] = formatTokenForApi(token, true);
-
+  
       return true;
     } catch (error) {
       console.error('Login failed:', {
@@ -101,15 +113,15 @@ export const AuthProvider = ({ children }) => {
         response: error.response?.data,
         status: error.response?.status
       });
-
+  
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       delete axios.defaults.headers.common['Authorization'];
-
+  
       throw new Error(
-        error.response?.data?.message || 
-        error.message || 
+        error.response?.data?.message ||
+        error.message ||
         'Login failed. Please try again.'
       );
     } finally {
