@@ -76,12 +76,6 @@ export const AuthProvider = ({ children }) => {
 
       const { token, user: userData } = responseData;
 
-      console.log('TOKEN DETAILS:', {
-        tokenLength: token.length,
-        tokenStart: token.substring(0, 20),
-        decodedPayload: jwt.decode(token)
-      });
-
       if (!token || !userData) {
         throw new Error('Invalid response format from server');
       }
