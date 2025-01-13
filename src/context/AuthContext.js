@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import jwt from 'jsonwebtoken';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = 'authToken';
