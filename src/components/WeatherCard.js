@@ -5,27 +5,35 @@ import { useAuth } from "../context/AuthContext";
 const WEBSOCKET_API_URL = process.env.REACT_APP_WEBSOCKET_API;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_BACKOFF_DELAY = 500;
+const CONNECTION_TIMEOUT = 5000; // 5 second timeout
 
 const WeatherCard = ({ location, onRemove }) => {
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef(null);
   const attemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
+  const connectionTimeoutRef = useRef(null);
   const { user } = useAuth();
 
   const connectWebSocket = () => {
-    // Clear any existing connection
+    // Clear any existing connection and timeouts
     if (wsRef.current) {
+      console.log('Closing existing connection');
       wsRef.current.close();
       wsRef.current = null;
     }
 
-    // Clear any pending reconnection
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
     }
 
     if (!user?.token) {
@@ -40,19 +48,15 @@ const WeatherCard = ({ location, onRemove }) => {
       return;
     }
 
-    const backoffDelay =
-      attemptRef.current > 0
-        ? Math.min(
-            INITIAL_BACKOFF_DELAY * Math.pow(2, attemptRef.current),
-            10000
-          )
-        : INITIAL_BACKOFF_DELAY;
+    const backoffDelay = Math.min(
+      INITIAL_BACKOFF_DELAY * Math.pow(2, attemptRef.current),
+      10000
+    );
 
-    console.log("Connecting to WebSocket...", {
-      baseUrl: WEBSOCKET_API_URL,
-      tokenLength: user.token.length,
+    console.log("Initiating WebSocket connection...", {
       attempt: attemptRef.current + 1,
       backoffDelay,
+      location: location.name
     });
 
     reconnectTimeoutRef.current = setTimeout(() => {
@@ -62,27 +66,46 @@ const WeatherCard = ({ location, onRemove }) => {
         )}`;
         const ws = new WebSocket(websocketUrlWithToken);
 
+        // Set connection timeout
+        connectionTimeoutRef.current = setTimeout(() => {
+          if (ws.readyState !== WebSocket.OPEN) {
+            console.log('Connection timeout - closing socket');
+            ws.close();
+            setError("Connection timeout");
+            setLoading(false);
+          }
+        }, CONNECTION_TIMEOUT);
+
         ws.onopen = () => {
-            // Add small delay after connection to ensure Lambda is ready
-            setTimeout(() => {
-                console.log('WebSocket connected successfully');
-                attemptRef.current = 0;
-                
-                if (location?.name) {
-                    const message = {
-                        action: 'subscribe',
-                        locationName: location.name,
-                        token: user.token
-                    };
-                    ws.send(JSON.stringify(message));
-                }
-            }, 100);
+          console.log('WebSocket connected successfully');
+          clearTimeout(connectionTimeoutRef.current);
+          setIsConnected(true);
+          attemptRef.current = 0;
+          
+          // Delay subscription to ensure Lambda is ready
+          setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN && location?.name) {
+              try {
+                const message = {
+                  action: 'subscribe',
+                  locationName: location.name,
+                  token: user.token
+                };
+                console.log('Sending subscription message for:', location.name);
+                ws.send(JSON.stringify(message));
+              } catch (err) {
+                console.error('Error sending subscription:', err);
+                setError("Failed to subscribe to updates");
+              }
+            }
+          }, 1000); // Increased delay to 1 second
         };
 
         ws.onmessage = (event) => {
+          console.log('Received WebSocket message for:', location.name);
           try {
             const data = JSON.parse(event.data);
-            console.log("Received WebSocket message:", data);
+            console.log("Parsed message data:", data);
 
             if (data.type === "error") {
               setError(data.message);
@@ -98,18 +121,14 @@ const WeatherCard = ({ location, onRemove }) => {
                 : null;
 
               if (locationData) {
+                console.log('Setting weather data for:', location.name);
                 setWeather(locationData);
                 setError("");
                 setLoading(false);
               }
             }
-
-            if (data.type === "noLocations") {
-              setError(data.message);
-              setLoading(false);
-            }
           } catch (err) {
-            console.error("Error parsing WebSocket message:", err);
+            console.error("Error processing message:", err);
             setError("Error processing weather data");
             setLoading(false);
           }
@@ -119,15 +138,18 @@ const WeatherCard = ({ location, onRemove }) => {
           console.error("WebSocket error:", error);
           setError("Connection error");
           setLoading(false);
+          setIsConnected(false);
         };
 
         ws.onclose = (event) => {
-          console.log("WebSocket disconnected:", {
+          console.log("WebSocket closed:", {
             code: event.code,
             reason: event.reason,
             wasClean: event.wasClean,
+            location: location.name
           });
 
+          setIsConnected(false);
           wsRef.current = null;
 
           if (event.code !== 1000) {
@@ -139,28 +161,36 @@ const WeatherCard = ({ location, onRemove }) => {
         wsRef.current = ws;
       } catch (connectionError) {
         console.error("WebSocket connection failed:", connectionError);
-        setError("Failed to establish WebSocket connection");
+        setError("Failed to establish connection");
         setLoading(false);
       }
     }, backoffDelay);
   };
 
   useEffect(() => {
+    console.log('WeatherCard mounted/updated for:', location.name);
     connectWebSocket();
 
     return () => {
+      console.log('WeatherCard unmounting for:', location.name);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+      }
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        const message = {
-          action: "unsubscribe",
-          locationName: location.name,
-          token: user?.token,
-        };
-        wsRef.current.send(JSON.stringify(message));
-        wsRef.current.close();
+        try {
+          const message = {
+            action: "unsubscribe",
+            locationName: location.name,
+            token: user?.token,
+          };
+          wsRef.current.send(JSON.stringify(message));
+          wsRef.current.close();
+        } catch (err) {
+          console.error('Error during cleanup:', err);
+        }
       }
     };
   }, [location.name, user?.token]);
@@ -182,46 +212,14 @@ const WeatherCard = ({ location, onRemove }) => {
   };
 
   const getLoadingMessage = () => {
-    if (attemptRef.current > 0) {
-      return `Connecting (Attempt ${attemptRef.current}/${MAX_RECONNECT_ATTEMPTS})...`;
+    if (!isConnected) {
+      return "Connecting to server...";
     }
-    return "Loading...";
+    if (attemptRef.current > 0) {
+      return `Reconnecting (Attempt ${attemptRef.current}/${MAX_RECONNECT_ATTEMPTS})...`;
+    }
+    return "Loading weather data...";
   };
-
-  if (loading) {
-    return (
-      <Card className="h-100">
-        <Card.Body className="text-center d-flex flex-column align-items-center justify-content-center">
-          <Spinner animation="border" role="status" className="mb-2" />
-          <span>{getLoadingMessage()}</span>
-        </Card.Body>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className="h-100">
-        <Card.Body>
-          <Card.Title className="d-flex justify-content-between align-items-start">
-            {location.name}
-            <Button variant="outline-danger" size="sm" onClick={onRemove}>
-              Remove
-            </Button>
-          </Card.Title>
-          <div className="text-danger my-3">{error}</div>
-          <Button
-            variant="outline-primary"
-            size="sm"
-            onClick={handleRefresh}
-            className="mt-2"
-          >
-            Retry
-          </Button>
-        </Card.Body>
-      </Card>
-    );
-  }
 
   return (
     <Card className="h-100">
@@ -235,7 +233,7 @@ const WeatherCard = ({ location, onRemove }) => {
         {loading ? (
           <div className="text-center">
             <Spinner animation="border" role="status" className="mb-2" />
-            <div>Loading weather data...</div>
+            <div>{getLoadingMessage()}</div>
           </div>
         ) : error ? (
           <>
