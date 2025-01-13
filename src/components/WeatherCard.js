@@ -200,10 +200,14 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
       // Close WebSocket connection
       if (wsRef.current) {
         try {
-          // Dispatch a custom event before closing
-          const event = new Event('custom-websocket-close');
-          window.dispatchEvent(event);
-          
+          if (wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+              action: 'unsubscribe',
+              locationName: connectionParams.cityName,
+              countryCode: connectionParams.countryCode,
+              token: connectionParams.token,
+            }));
+          }
           wsRef.current.close();
           wsRef.current = null;
         } catch (error) {
@@ -229,11 +233,17 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
       }
     };
 
-    // If user is null, it means logout has occurred
+    // Listen for both user state changes and auth-logout event
     if (!user) {
       handleLogout();
     }
-  }, [user]);
+
+    // Add auth-logout event listener
+    window.addEventListener('auth-logout', handleLogout);
+    return () => {
+      window.removeEventListener('auth-logout', handleLogout);
+    };
+  }, [user, connectionParams]);
 
   // Refresh handler
   const handleRefresh = useCallback(() => {

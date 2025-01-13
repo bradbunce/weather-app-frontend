@@ -131,16 +131,36 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Close WebSocket connections first
+      // Close WebSocket connections first and wait for them to close
       if (window.activeWebSockets) {
         console.log(`Closing ${window.activeWebSockets.size} active WebSocket connections`);
-        window.activeWebSockets.forEach(ws => {
-          try {
-            ws.close();
-          } catch (error) {
-            console.error('Error closing WebSocket:', error);
-          }
+        const closePromises = Array.from(window.activeWebSockets).map(ws => {
+          return new Promise((resolve) => {
+            // Set up onclose handler before closing
+            const originalOnClose = ws.onclose;
+            ws.onclose = (event) => {
+              if (originalOnClose) originalOnClose.call(ws, event);
+              resolve();
+            };
+            
+            try {
+              // Attempt to send unsubscribe message
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'unsubscribe' }));
+              }
+              ws.close();
+            } catch (error) {
+              console.error('Error closing WebSocket:', error);
+              resolve(); // Resolve even on error to continue logout
+            }
+          });
         });
+
+        // Wait for all WebSockets to close with a timeout
+        await Promise.race([
+          Promise.all(closePromises),
+          new Promise(resolve => setTimeout(resolve, 3000)) // 3 second timeout
+        ]);
         window.activeWebSockets.clear();
       }
   
@@ -159,6 +179,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout process encountered an error:', error);
     } finally {
+      // Dispatch event to notify components about logout
+      window.dispatchEvent(new Event('auth-logout'));
+      
       // Clear user state and authentication
       setUser(null);
       setIsAuthenticated(false);
