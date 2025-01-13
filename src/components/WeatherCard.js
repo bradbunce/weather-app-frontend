@@ -19,6 +19,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
   const attemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
   const connectionTimeoutRef = useRef(null);
+  const [activeWebSocket, setActiveWebSocket] = useState(null);
 
   // Memoized connection parameters to prevent unnecessary reconnects
   const connectionParams = useMemo(() => ({
@@ -92,8 +93,11 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
           clearTimeout(connectionTimeoutRef.current);
           setIsConnected(true);
           attemptRef.current = 0;
-          wsRef.current.setAttribute('data-websocket-active', 'true');
-
+          
+          // Track WebSocket via a global set or custom attribute on window
+          window.activeWebSockets = window.activeWebSockets || new Set();
+          window.activeWebSockets.add(ws);
+         
           // Send subscription after a short delay
           setTimeout(() => {
             if (ws.readyState === WebSocket.OPEN) {
@@ -109,7 +113,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
               }
             }
           }, 1000);
-        };
+         };
 
         // Process incoming messages
         ws.onmessage = (event) => {
@@ -194,6 +198,10 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
       // Close WebSocket connection
       if (wsRef.current) {
         try {
+          // Dispatch a custom event before closing
+          const event = new Event('custom-websocket-close');
+          window.dispatchEvent(event);
+          
           wsRef.current.close();
           wsRef.current = null;
         } catch (error) {
