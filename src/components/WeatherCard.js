@@ -44,7 +44,7 @@ const WeatherCard = ({ location, onRemove }) => {
       return;
     }
 
-    if (!location?.cityName) {
+    if (!location?.city_name) {
       console.error('No city name provided:', location);
       setError("Location information missing");
       setLoading(false);
@@ -65,7 +65,7 @@ const WeatherCard = ({ location, onRemove }) => {
     console.log("Initiating WebSocket connection...", {
       attempt: attemptRef.current + 1,
       backoffDelay,
-      location: location.cityName
+      location: location.city_name
     });
 
     reconnectTimeoutRef.current = setTimeout(() => {
@@ -95,10 +95,10 @@ const WeatherCard = ({ location, onRemove }) => {
               try {
                 const message = {
                   action: 'subscribe',
-                  locationName: location.cityName,
+                  locationName: location.city_name,
                   token: user.token
                 };
-                console.log('Sending subscription message for:', location.cityName);
+                console.log('Sending subscription message for:', location.city_name);
                 ws.send(JSON.stringify(message));
               } catch (err) {
                 console.error('Error sending subscription:', err);
@@ -109,7 +109,7 @@ const WeatherCard = ({ location, onRemove }) => {
         };
 
         ws.onmessage = (event) => {
-          console.log('Received WebSocket message for:', location.cityName);
+          console.log('Received WebSocket message for:', location.city_name);
           try {
             const data = JSON.parse(event.data);
             console.log("Parsed message data:", data);
@@ -122,13 +122,13 @@ const WeatherCard = ({ location, onRemove }) => {
 
             if (data.type === "weatherUpdate") {
               const locationData = Array.isArray(data.data)
-                ? data.data.find((d) => d.locationName === location.cityName)
-                : data.data.locationName === location.cityName
+                ? data.data.find((d) => d.locationName === location.city_name)
+                : data.data.locationName === location.city_name
                 ? data.data
                 : null;
 
               if (locationData) {
-                console.log('Setting weather data for:', location.cityName);
+                console.log('Setting weather data for:', location.city_name);
                 setWeather(locationData);
                 setError("");
                 setLoading(false);
@@ -153,7 +153,7 @@ const WeatherCard = ({ location, onRemove }) => {
             code: event.code,
             reason: event.reason,
             wasClean: event.wasClean,
-            location: location.cityName
+            location: location.city_name
           });
 
           setIsConnected(false);
@@ -175,13 +175,13 @@ const WeatherCard = ({ location, onRemove }) => {
   };
 
   useEffect(() => {
-    console.log('WeatherCard mounted/updated for:', location?.cityName);
-    if (location?.cityName) {
+    console.log('WeatherCard mounted/updated for:', location?.city_name);
+    if (location?.city_name) {
       connectWebSocket();
     }
 
     return () => {
-      console.log('WeatherCard unmounting for:', location?.cityName);
+      console.log('WeatherCard unmounting for:', location?.city_name);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -192,7 +192,7 @@ const WeatherCard = ({ location, onRemove }) => {
         try {
           const message = {
             action: "unsubscribe",
-            locationName: location.cityName,
+            locationName: location.city_name,
             token: user?.token,
           };
           wsRef.current.send(JSON.stringify(message));
@@ -202,13 +202,13 @@ const WeatherCard = ({ location, onRemove }) => {
         }
       }
     };
-  }, [location?.cityName, user?.token]);
+  }, [location?.city_name, user?.token]);
 
   const handleRefresh = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       const message = {
         action: "getWeather",
-        locationName: location.cityName,
+        locationName: location.city_name,
         token: user?.token,
       };
       wsRef.current.send(JSON.stringify(message));
@@ -234,7 +234,7 @@ const WeatherCard = ({ location, onRemove }) => {
     <Card className="h-100">
       <Card.Body>
         <Card.Title className="d-flex justify-content-between align-items-start">
-          {location.cityName}
+          {location.city_name}
           <Button variant="outline-danger" size="sm" onClick={onRemove}>
             Remove
           </Button>
