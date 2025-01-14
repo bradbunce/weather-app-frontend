@@ -1,5 +1,5 @@
 {
-  "name": "ld-hands-on-learning-frontend",
+  "name": "weather-app-frontend",
   "dockerFile": "Dockerfile",
   "appPort": [3000],
   "runArgs": ["-u", "node"],

@@ -1,4 +1,4 @@
-FROM node:lts-iron
+FROM node:lts-jod
 
 # Set timezone
 ENV TZ="America/New_York"
