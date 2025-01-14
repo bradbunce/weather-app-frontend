@@ -123,15 +123,16 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
             if (data.type === "error") {
               return handleError(data.message);
             }
-
-            if (data.type === "weatherUpdate") {
+        
+            // Handle both weatherUpdate and getWeather response types
+            if (data.type === "weatherUpdate" || data.type === "getWeather") {
               const locationData = Array.isArray(data.data)
                 ? data.data.find(d => 
                     d.name === connectionParams.cityName || 
                     d.locationName === connectionParams.cityName
                   )
                 : data.data;
-
+        
               if (locationData) {
                 setWeather(locationData.weather || locationData);
                 setError("");
@@ -248,14 +249,22 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
   // Refresh handler
   const handleRefresh = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        action: "getWeather",
-        locationName: connectionParams.cityName,
-        countryCode: connectionParams.countryCode,
-        token: connectionParams.token,
-      }));
-      setLoading(true);
+      try {
+        console.log('Sending refresh request...'); // Debug log
+        wsRef.current.send(JSON.stringify({
+          action: "getWeather",
+          locationName: connectionParams.cityName,
+          countryCode: connectionParams.countryCode,
+          token: connectionParams.token,
+        }));
+        setLoading(true);
+      } catch (err) {
+        console.error('Refresh request failed:', err); // Debug log
+        handleError("Failed to send refresh request");
+        setLoading(false);
+      }
     } else {
+      console.log('WebSocket not connected, attempting reconnect...'); // Debug log
       handleError("Connection lost. Attempting to reconnect...");
       attemptRef.current = 0;
       connectWebSocket();
@@ -274,7 +283,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
     if (loading) return (
       <div className="text-center">
         <Spinner animation="border" role="status" className="mb-2" />
-        <div>{getLoadingMessage}</div>
+        <div>{getLoadingMessage()}</div>
       </div>
     );
 
