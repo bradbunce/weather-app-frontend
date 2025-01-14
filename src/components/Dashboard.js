@@ -246,9 +246,16 @@ const Dashboard = () => {
 
   const removeLocation = async (locationId) => {
     if (!user?.username) return;
-
+  
+    const deleteUrl = `${LOCATIONS_API_URL}/locations/${locationId}`;
+    console.log('Attempting to delete location:', {
+      url: deleteUrl,
+      locationId,
+      location: locations.find(loc => loc.id === locationId)
+    });
+  
     try {
-      await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`, {
+      await axios.delete(deleteUrl, {
         headers: getAuthHeaders()
       });
       
