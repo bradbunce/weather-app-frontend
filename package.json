@@ -55,6 +55,10 @@
     "@svgr/plugin-svgo": "^8.1.0",
     "@svgr/webpack": "^8.1.0",
     "resolve-url-loader": "^5.0.0",
-    "eslint": "^8.57.0"
+    "eslint": "^8.57.0",
+    "sourcemap-codec": "^1.4.8",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rimraf": "^5.0.0",
+    "glob": "^10.3.10"
   }
 }
