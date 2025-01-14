@@ -174,7 +174,7 @@ const Dashboard = () => {
     if (!newLocation.trim() || !user?.username) return;
   
     try {
-      // Use a geocoding service to get location details
+      // Geocoding code remains the same
       const geocodingResponse = await axios.get(`https://nominatim.openstreetmap.org/search`, {
         params: {
           q: newLocation.trim(),
@@ -190,9 +190,10 @@ const Dashboard = () => {
         return;
       }
   
+      // Update the field names to match what the backend expects
       const newLocationData = {
-        cityName: locationData.display_name.split(',')[0].trim(),
-        countryCode: getCountryCode(locationData.display_name),
+        city_name: locationData.display_name.split(',')[0].trim(),  // Changed from cityName
+        country_code: getCountryCode(locationData.display_name),    // Changed from countryCode
         latitude: parseFloat(locationData.lat),
         longitude: parseFloat(locationData.lon)
       };
@@ -224,15 +225,23 @@ const Dashboard = () => {
     const parts = displayName.split(',');
     const countryPart = parts[parts.length - 1].trim();
     
-    // Mapping of country names to country codes (you'd want a more comprehensive mapping)
+    // Map common variations of country names
     const countryCodeMap = {
       'United States': 'US',
+      'United States of America': 'US',
+      'USA': 'US',
       'Canada': 'CA',
       'United Kingdom': 'GB',
-      // Add more mappings as needed
+      'UK': 'GB',
+      'Great Britain': 'GB',
+      // Add more as needed
     };
   
-    return countryCodeMap[countryPart] || 'Unknown';
+    const code = countryCodeMap[countryPart];
+    if (!code) {
+      console.warn('Unknown country:', countryPart);
+    }
+    return code || 'US';  // Default to US instead of 'Unknown'
   };
 
   const removeLocation = async (locationId) => {
