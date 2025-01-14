@@ -274,7 +274,8 @@ const Dashboard = () => {
     console.log('Attempting to delete location:', {
       url: deleteUrl,
       locationId,
-      location: locations.find(loc => loc.location_id === locationId)
+      location: locations.find(loc => loc.location_id === locationId),
+      allLocations: locations // Let's see all locations data
     });
   
     try {
@@ -283,12 +284,15 @@ const Dashboard = () => {
       });
       
       setLocations(prevLocations => 
-        prevLocations.filter(loc => loc.location_id !== locationId)  // Update this too
+        prevLocations.filter(loc => loc.location_id !== locationId)
       );
       
       fetchLocations();
     } catch (err) {
-      console.error('Error removing location:', err);
+      console.error('Error removing location:', {
+        error: err,
+        locationData: locations.find(loc => loc.location_id === locationId)
+      });
       setError(err.response?.data?.message || 'Failed to remove location');
     }
   };
