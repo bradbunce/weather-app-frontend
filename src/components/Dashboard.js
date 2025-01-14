@@ -124,7 +124,7 @@ const Dashboard = () => {
       setLoading(false);
       return;
     }
-
+  
     try {
       // Step 4: API configuration debugging
       console.log('🌐 API Configuration:', {
@@ -132,20 +132,36 @@ const Dashboard = () => {
         fullURL: `${LOCATIONS_API_URL}/locations`,
         headers: getAuthHeaders()
       });
-      
+  
       const response = await axios.get(`${LOCATIONS_API_URL}/locations`, {
         headers: getAuthHeaders()
       });
-      
+  
+      // Add detailed logging of the response data
+      console.log('📍 Raw locations response:', response.data);
+  
+      let locationData;
       if (response.data?.locations) {
-        setLocations(response.data.locations);
+        locationData = response.data.locations;
+        console.log('📍 Locations from nested property:', locationData);
       } else if (Array.isArray(response.data)) {
-        setLocations(response.data);
+        locationData = response.data;
+        console.log('📍 Locations from direct array:', locationData);
       } else {
         console.warn('⚠️ Unexpected locations data format:', response.data);
-        setLocations([]);
+        locationData = [];
       }
-      
+  
+      // Log the structure of the first location if available
+      if (locationData.length > 0) {
+        console.log('📍 Sample location structure:', {
+          firstLocation: locationData[0],
+          idField: locationData[0].id || locationData[0].location_id,
+          availableFields: Object.keys(locationData[0])
+        });
+      }
+  
+      setLocations(locationData);
       setLoading(false);
     } catch (err) {
       console.error('❌ Error fetching locations:', {
@@ -153,9 +169,8 @@ const Dashboard = () => {
         status: err.response?.status,
         data: err.response?.data
       });
-      
+  
       let errorMessage = 'Failed to fetch locations';
-      
       if (err.response?.status === 401) {
         errorMessage = 'Your session has expired. Please log in again.';
       } else if (err.response?.status === 403) {
@@ -163,7 +178,7 @@ const Dashboard = () => {
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       }
-      
+  
       setError(errorMessage);
       setLoading(false);
     }
