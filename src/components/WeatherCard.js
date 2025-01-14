@@ -250,7 +250,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
   const handleRefresh = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       try {
-        console.log('Sending refresh request...'); // Debug log
+        console.log('Sending refresh request...');
         wsRef.current.send(JSON.stringify({
           action: "getWeather",
           locationName: connectionParams.cityName,
@@ -259,12 +259,12 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
         }));
         setLoading(true);
       } catch (err) {
-        console.error('Refresh request failed:', err); // Debug log
+        console.error('Refresh request failed:', err);
         handleError("Failed to send refresh request");
         setLoading(false);
       }
     } else {
-      console.log('WebSocket not connected, attempting reconnect...'); // Debug log
+      console.log('WebSocket not connected, attempting reconnect...');
       handleError("Connection lost. Attempting to reconnect...");
       attemptRef.current = 0;
       connectWebSocket();
