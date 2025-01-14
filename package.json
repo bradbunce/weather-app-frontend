@@ -43,9 +43,12 @@
     "@babel/plugin-transform-class-properties": "^7.23.3",
     "@babel/plugin-transform-private-property-in-object": "^7.23.4",
     "@babel/plugin-transform-optional-chaining": "^7.23.4",
+    "@eslint/config-array": "^1.0.0",
+    "@eslint/object-schema": "^1.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^14.0.0",
-    "@testing-library/user-event": "^14.5.2"
+    "@testing-library/user-event": "^14.5.2",
+    "eslint": "^9.0.0"
   },
   "overrides": {
     "nth-check": "^2.1.1",
