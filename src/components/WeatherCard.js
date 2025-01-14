@@ -329,7 +329,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
       <>
         <Card.Text as="div">
           <div className="mb-2">
-            <strong>Temperature:</strong> {weather.temperature}°C
+            <strong>Temperature:</strong> {weather.temperature}°F
           </div>
           <div className="mb-2">
             <strong>Condition:</strong> {weather.condition}
