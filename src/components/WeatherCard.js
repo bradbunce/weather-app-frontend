@@ -338,7 +338,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
             <strong>Humidity:</strong> {weather.humidity}%
           </div>
           <div>
-            <strong>Wind Speed:</strong> {weather.windSpeed} km/h
+            <strong>Wind Speed:</strong> {weather.windSpeed} MPH
           </div>
         </Card.Text>
         <div className="text-muted mt-3">
