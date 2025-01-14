@@ -283,7 +283,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
     if (loading) return (
       <div className="text-center">
         <Spinner animation="border" role="status" className="mb-2" />
-        <div>{loadingMessage()}</div>
+        <div>{loadingMessage}</div>
       </div>
     );
 
