@@ -272,18 +272,18 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
   }, [connectionParams, handleError, connectWebSocket]);
 
   // Loading message generator
-  const getLoadingMessage = useMemo(() => {
+  const loadingMessage = useMemo(() => {
     if (!isConnected) return "Connecting to server...";
     if (attemptRef.current > 0) return `Reconnecting (Attempt ${attemptRef.current}/${MAX_RECONNECT_ATTEMPTS})...`;
     return "Loading weather data...";
-  }, [isConnected]);
+  }, [isConnected, attemptRef.current])
 
   // Render weather details
   const renderWeatherDetails = useMemo(() => {
     if (loading) return (
       <div className="text-center">
         <Spinner animation="border" role="status" className="mb-2" />
-        <div>{getLoadingMessage()}</div>
+        <div>{loadingMessage()}</div>
       </div>
     );
 
@@ -337,7 +337,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
     ) : (
       <div className="text-muted">No weather data available</div>
     );
-  }, [weather, loading, error, getLoadingMessage, handleRefresh]);
+  }, [weather, loading, error, loadingMessage, handleRefresh]);
 
   return (
     <Card className="h-100">
