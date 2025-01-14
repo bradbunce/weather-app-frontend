@@ -261,12 +261,20 @@ const Dashboard = () => {
 
   const removeLocation = async (locationId) => {
     if (!user?.username) return;
+    if (!locationId) {
+      console.error('No location ID provided:', {
+        locationId,
+        locationsData: locations
+      });
+      setError('Unable to remove location: Invalid ID');
+      return;
+    }
   
     const deleteUrl = `${LOCATIONS_API_URL}/locations/${locationId}`;
     console.log('Attempting to delete location:', {
       url: deleteUrl,
       locationId,
-      location: locations.find(loc => loc.id === locationId)
+      location: locations.find(loc => loc.location_id === locationId)
     });
   
     try {
@@ -275,7 +283,7 @@ const Dashboard = () => {
       });
       
       setLocations(prevLocations => 
-        prevLocations.filter(loc => loc.id !== locationId)
+        prevLocations.filter(loc => loc.location_id !== locationId)  // Update this too
       );
       
       fetchLocations();
@@ -412,7 +420,7 @@ const Dashboard = () => {
           <Col key={location.id}>
             <WeatherCard
               location={location}
-              onRemove={() => removeLocation(location.id)}
+              onRemove={() => removeLocation(location.location_id)}
             />
           </Col>
         ))}
