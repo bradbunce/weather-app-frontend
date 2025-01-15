@@ -6,7 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { Card, Button, Spinner } from "react-bootstrap";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 
 const WEBSOCKET_API_URL = process.env.REACT_APP_WEBSOCKET_API;
 const MAX_RECONNECT_ATTEMPTS = 5;

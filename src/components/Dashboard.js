@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Row, Col, Button, Form, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import WeatherCard from './WeatherCard';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;
 
