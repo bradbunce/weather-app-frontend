@@ -1,12 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from 'axios';
+import { useLogger } from '../utils/logger';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = 'authToken';
 
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
+/**
+ * AuthProvider Component
+ * Manages authentication state and provides auth-related functionality to the app.
+ * Wrapped with LaunchDarkly consumer for feature flag access.
+ */
+const AuthProviderComponent = ({ children, flags }) => {
+  const logger = useLogger();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,9 +27,11 @@ export const AuthProvider = ({ children }) => {
   // Check for existing token on mount
   useEffect(() => {
     const initializeAuth = async () => {
+      logger.info('Initializing authentication state');
       const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
       
       if (storedToken) {
+        logger.debug('Found stored token, validating...');
         try {
           // For auth API, use Bearer prefix
           const response = await axios.get(`${AUTH_API_URL}/validate-token`, {
@@ -31,25 +41,34 @@ export const AuthProvider = ({ children }) => {
           });
 
           const userData = response.data.user;
+          logger.info('Token validation successful', { userId: userData.id });
           // Store the raw token in the user object
           setUser({ ...userData, token: storedToken });
           setIsAuthenticated(true);
           // For default axios headers, use Bearer prefix
           axios.defaults.headers.common['Authorization'] = formatTokenForApi(storedToken, true);
         } catch (error) {
-          console.warn('Stored token validation failed:', error.message);
+          logger.warn('Stored token validation failed', {
+            error: error.message,
+            stack: error.stack
+          });
           localStorage.removeItem(TOKEN_STORAGE_KEY);
           delete axios.defaults.headers.common['Authorization'];
         }
       }
       
       setIsLoading(false);
+      logger.debug('Auth initialization complete', {
+        isAuthenticated: Boolean(storedToken),
+        hasValidToken: Boolean(user)
+      });
     };
 
     initializeAuth();
-  }, []);
+  }, [logger]);
 
   const login = async (credentials) => {
+    logger.info('Attempting login', { username: credentials.username });
     try {
       setIsLoading(true);
       const response = await axios.post(
@@ -76,7 +95,7 @@ export const AuthProvider = ({ children }) => {
       const { token, user: userData } = responseData;
   
       // Manual token inspection
-      console.log('TOKEN DETAILS:', {
+      logger.debug('Token details:', {
         tokenLength: token.length,
         tokenStart: token.substring(0, 20),
         tokenParts: token.split('.').map((part, index) => {
@@ -95,6 +114,10 @@ export const AuthProvider = ({ children }) => {
       });
   
       if (!token || !userData) {
+        logger.error('Invalid server response format', { 
+          hasToken: Boolean(token), 
+          hasUserData: Boolean(userData) 
+        });
         throw new Error('Invalid response format from server');
       }
   
@@ -106,9 +129,13 @@ export const AuthProvider = ({ children }) => {
       // Use Bearer prefix for default axios headers
       axios.defaults.headers.common['Authorization'] = formatTokenForApi(token, true);
   
+      logger.info('Login successful', { 
+        userId: userData.id,
+        username: userData.username 
+      });
       return true;
     } catch (error) {
-      console.error('Login failed:', {
+      logger.error('Login failed', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status
@@ -130,10 +157,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    logger.info('Initiating logout process');
     try {
       // Close WebSocket connections first and wait for them to close
       if (window.activeWebSockets) {
-        console.log(`Closing ${window.activeWebSockets.size} active WebSocket connections`);
+        logger.debug(`Closing WebSocket connections`, {
+          connectionCount: window.activeWebSockets.size
+        });
         const closePromises = Array.from(window.activeWebSockets).map(ws => {
           return new Promise((resolve) => {
             // Set up onclose handler before closing
@@ -150,7 +180,10 @@ export const AuthProvider = ({ children }) => {
               }
               ws.close();
             } catch (error) {
-              console.error('Error closing WebSocket:', error);
+              logger.error('Error closing WebSocket', {
+                error: error.message,
+                stack: error.stack
+              });
               resolve(); // Resolve even on error to continue logout
             }
           });
@@ -173,11 +206,17 @@ export const AuthProvider = ({ children }) => {
             }
           });
         } catch (error) {
-          console.warn('Logout API notification failed:', error.message);
+          logger.warn('Logout API notification failed', {
+            error: error.message,
+            stack: error.stack
+          });
         }
       }
     } catch (error) {
-      console.error('Logout process encountered an error:', error);
+      logger.error('Logout process error', {
+        error: error.message,
+        stack: error.stack
+      });
     } finally {
       // Dispatch event to notify components about logout
       window.dispatchEvent(new Event('auth-logout'));
@@ -187,13 +226,18 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(false);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       delete axios.defaults.headers.common['Authorization'];
+      logger.info('Logout complete');
     }
   };
 
   const refreshToken = async () => {
+    logger.debug('Attempting token refresh');
     try {
       const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (!currentToken) throw new Error('No token to refresh');
+      if (!currentToken) {
+        logger.warn('Token refresh failed - No token found');
+        throw new Error('No token to refresh');
+      }
 
       const response = await axios.post(
         `${AUTH_API_URL}/refresh-token`,
@@ -217,7 +261,10 @@ export const AuthProvider = ({ children }) => {
 
       return true;
     } catch (error) {
-      console.error('Token refresh failed:', error.message);
+      logger.error('Token refresh failed', {
+        error: error.message,
+        stack: error.stack
+      });
       logout();
       throw error;
     }
@@ -233,6 +280,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   if (isLoading) {
+    logger.trace('Rendering loading state');
     return <div>Loading...</div>;
   }
 
@@ -252,3 +300,6 @@ export const useAuth = () => {
 };
 
 export default AuthContext;
+
+// Export the LaunchDarkly wrapped AuthProvider
+export const AuthProvider = withLDConsumer()(AuthProviderComponent);
