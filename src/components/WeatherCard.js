@@ -25,7 +25,6 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
   const attemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
   const connectionTimeoutRef = useRef(null);
-  const [activeWebSocket, setActiveWebSocket] = useState(null);
 
   // Memoized connection parameters to prevent unnecessary reconnects
   const connectionParams = useMemo(
@@ -299,7 +298,7 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
     if (attemptRef.current > 0)
       return `Reconnecting (Attempt ${attemptRef.current}/${MAX_RECONNECT_ATTEMPTS})...`;
     return "Loading weather data...";
-  }, [isConnected, attemptRef.current]);
+  }, [isConnected]);  // Removed attemptRef.current from dependencies
 
   // Render weather details
   const renderWeatherDetails = useMemo(() => {
@@ -361,14 +360,14 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
     ) : (
       <div className="text-muted">No weather data available</div>
     );
-  }, [weather, loading, error, loadingMessage, handleRefresh]);
+  }, [weather, loading, error, loadingMessage, handleRefresh, location.location_id, onRemove]);
 
   return (
     <Card className="h-100">
       <Card.Body>
         <Card.Title className="d-flex justify-content-between align-items-start">
           {location.city_name}
-          <Button variant="outline-danger" size="sm" onClick={onRemove}>
+          <Button variant="outline-danger" size="sm" onClick={() => onRemove(location.location_id)}>
             Remove
           </Button>
         </Card.Title>
