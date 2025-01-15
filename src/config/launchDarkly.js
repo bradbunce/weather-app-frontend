@@ -9,7 +9,6 @@ export const ContextKinds = {
     kind: 'user',
     // Function to create user context from user data
     createContext: (userData) => ({
-      kind: 'user',
       key: userData?.username || 'anonymous',
       name: userData?.name,
       email: userData?.email,
@@ -22,7 +21,6 @@ export const ContextKinds = {
     kind: 'application',
     // Function to create application context
     createContext: () => ({
-      kind: 'application',
       key: process.env.REACT_APP_NAME || 'weather-app-frontend',
       environment: process.env.REACT_APP_ENVIRONMENT || 'development'
     })
@@ -31,16 +29,16 @@ export const ContextKinds = {
 
 /**
  * Creates a multi-context object for LaunchDarkly evaluation
- * Combines user and application contexts
+ * Combines user and application contexts into a single context object
  * 
  * @param {Object} userData - User data for user context
- * @returns {Array} Array of context objects for LaunchDarkly
+ * @returns {Object} Multi-context object for LaunchDarkly
  */
 export const createLDContexts = (userData) => {
-  return [
-    ContextKinds.USER.createContext(userData),
-    ContextKinds.APPLICATION.createContext()
-  ];
+  return {
+    user: ContextKinds.USER.createContext(userData),
+    application: ContextKinds.APPLICATION.createContext()
+  };
 };
 
 // Feature flag keys
