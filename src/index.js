@@ -1,6 +1,10 @@
+// Import React for JSX support and component creation
 import React from 'react';
+// Import createRoot for concurrent rendering support in React 18+
 import { createRoot } from 'react-dom/client';
+// Import global styles
 import './index.css';
+// Import the root App component
 import App from './App';
 
 // Get root DOM element where React will mount the application
