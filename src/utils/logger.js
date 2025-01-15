@@ -1,5 +1,6 @@
 // src/utils/logger.js
 import { useLDClient } from "launchdarkly-react-client-sdk";
+import { FeatureFlags } from "../config/launchDarkly";
 
 export const LogLevel = {
   ERROR: 0,
@@ -12,7 +13,7 @@ export const LogLevel = {
 class Logger {
   constructor() {
     this.ldClient = null;
-    this.FLAG_KEY = "frontend-console-logging";
+    this.FLAG_KEY = FeatureFlags.FRONTEND_CONSOLE_LOGGING;
   }
 
   setLDClient(client) {
