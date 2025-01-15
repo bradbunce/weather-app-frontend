@@ -26,7 +26,7 @@ import { LDProvider } from "./contexts/LaunchDarklyContext";
  * PrivateRoute Component
  * Higher-order component that protects routes requiring authentication.
  * Redirects to login if user is not authenticated.
- * 
+ *
  * @param {Object} props - Component properties
  * @param {React.ReactNode} props.children - Child components to render when authenticated
  * @returns {React.ReactNode} Protected route content or redirect to login
@@ -43,19 +43,19 @@ const PrivateRoute = ({ children }) => {
  * - LaunchDarkly feature flags
  * - Routing configuration
  * - Basic layout structure
- * 
+ *
  * The component hierarchy is:
  * 1. AuthProvider - Manages authentication state
  * 2. LDProvider - Manages feature flags
  * 3. Router - Handles application routing
  * 4. Layout components (NavigationBar, Container)
- * 
+ *
  * @returns {React.ReactNode} The complete application structure
  */
 function App() {
   return (
-    <AuthProvider>
-      <LDProvider>
+    <LDProvider>
+      <AuthProvider>
         <Router>
           <div className="d-flex flex-column min-vh-100">
             <NavigationBar />
@@ -65,7 +65,7 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                
+
                 {/* Protected Routes */}
                 <Route
                   path="/dashboard"
@@ -79,8 +79,8 @@ function App() {
             </Container>
           </div>
         </Router>
-      </LDProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </LDProvider>
   );
 }
 
