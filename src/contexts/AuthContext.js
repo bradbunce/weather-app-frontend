@@ -1,28 +1,24 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from 'axios';
 import { useLogger } from '../utils/logger';
+import { createLDContexts } from '../config/launchDarkly';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = 'authToken';
 
 const AuthContext = createContext(null);
 
-/**
- * AuthProvider Component
- * Manages authentication state and provides auth-related functionality to the app.
- * Wrapped with LaunchDarkly consumer for feature flag access.
- */
 const AuthProviderComponent = ({ children, flags }) => {
   const logger = useLogger();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Format token based on API needs
-  const formatTokenForApi = (token, needsBearer = true) => {
+  // Format token based on API needs - wrapped in useCallback
+  const formatTokenForApi = useCallback((token, needsBearer = true) => {
     return needsBearer ? `Bearer ${token}` : token;
-  };
+  }, []);
 
   // Check for existing token on mount
   useEffect(() => {
@@ -33,7 +29,6 @@ const AuthProviderComponent = ({ children, flags }) => {
       if (storedToken) {
         logger.debug('Found stored token, validating...');
         try {
-          // For auth API, use Bearer prefix
           const response = await axios.get(`${AUTH_API_URL}/validate-token`, {
             headers: {
               Authorization: formatTokenForApi(storedToken, true)
@@ -42,10 +37,8 @@ const AuthProviderComponent = ({ children, flags }) => {
 
           const userData = response.data.user;
           logger.info('Token validation successful', { userId: userData.id });
-          // Store the raw token in the user object
           setUser({ ...userData, token: storedToken });
           setIsAuthenticated(true);
-          // For default axios headers, use Bearer prefix
           axios.defaults.headers.common['Authorization'] = formatTokenForApi(storedToken, true);
         } catch (error) {
           logger.warn('Stored token validation failed', {
@@ -59,13 +52,39 @@ const AuthProviderComponent = ({ children, flags }) => {
       
       setIsLoading(false);
       logger.debug('Auth initialization complete', {
-        isAuthenticated: Boolean(storedToken),
-        hasValidToken: Boolean(user)
+        isAuthenticated: Boolean(storedToken)
       });
     };
 
     initializeAuth();
-  }, [logger]);
+  }, [logger, formatTokenForApi]);
+
+  // Update LaunchDarkly context when user changes
+  useEffect(() => {
+    const updateLDContext = async () => {
+      if (!window.launchDarkly?.client) {
+        logger.warn('LaunchDarkly client not found in window object');
+        return;
+      }
+
+      logger.debug('Updating LaunchDarkly contexts', {
+        hasUser: !!user,
+        username: user?.username
+      });
+
+      try {
+        await window.launchDarkly.client.identify(createLDContexts(user));
+        logger.debug('LaunchDarkly contexts updated successfully');
+      } catch (error) {
+        logger.error('Error updating LaunchDarkly contexts', {
+          error: error.message,
+          stack: error.stack
+        });
+      }
+    };
+
+    updateLDContext();
+  }, [user, logger]);
 
   const login = async (credentials) => {
     logger.info('Attempting login', { username: credentials.username });
@@ -101,7 +120,6 @@ const AuthProviderComponent = ({ children, flags }) => {
         tokenParts: token.split('.').map((part, index) => {
           if (index === 2) return 'Signature';
           try {
-            // Decode base64 and parse JSON
             const decodedPart = atob(
               part.replace(/-/g, '+').replace(/_/g, '/')
                 .padEnd(part.length + (4 - part.length % 4) % 4, '=')
@@ -121,12 +139,9 @@ const AuthProviderComponent = ({ children, flags }) => {
         throw new Error('Invalid response format from server');
       }
   
-      // Store raw token
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      // Include raw token in user object
       setUser({ ...userData, token });
       setIsAuthenticated(true);
-      // Use Bearer prefix for default axios headers
       axios.defaults.headers.common['Authorization'] = formatTokenForApi(token, true);
   
       logger.info('Login successful', { 
@@ -159,14 +174,12 @@ const AuthProviderComponent = ({ children, flags }) => {
   const logout = async () => {
     logger.info('Initiating logout process');
     try {
-      // Close WebSocket connections first and wait for them to close
       if (window.activeWebSockets) {
         logger.debug(`Closing WebSocket connections`, {
           connectionCount: window.activeWebSockets.size
         });
         const closePromises = Array.from(window.activeWebSockets).map(ws => {
           return new Promise((resolve) => {
-            // Set up onclose handler before closing
             const originalOnClose = ws.onclose;
             ws.onclose = (event) => {
               if (originalOnClose) originalOnClose.call(ws, event);
@@ -174,7 +187,6 @@ const AuthProviderComponent = ({ children, flags }) => {
             };
             
             try {
-              // Attempt to send unsubscribe message
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ action: 'unsubscribe' }));
               }
@@ -184,15 +196,14 @@ const AuthProviderComponent = ({ children, flags }) => {
                 error: error.message,
                 stack: error.stack
               });
-              resolve(); // Resolve even on error to continue logout
+              resolve();
             }
           });
         });
 
-        // Wait for all WebSockets to close with a timeout
         await Promise.race([
           Promise.all(closePromises),
-          new Promise(resolve => setTimeout(resolve, 3000)) // 3 second timeout
+          new Promise(resolve => setTimeout(resolve, 3000))
         ]);
         window.activeWebSockets.clear();
       }
@@ -218,10 +229,8 @@ const AuthProviderComponent = ({ children, flags }) => {
         stack: error.stack
       });
     } finally {
-      // Dispatch event to notify components about logout
       window.dispatchEvent(new Event('auth-logout'));
       
-      // Clear user state and authentication
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -301,5 +310,4 @@ export const useAuth = () => {
 
 export default AuthContext;
 
-// Export the LaunchDarkly wrapped AuthProvider
 export const AuthProvider = withLDConsumer()(AuthProviderComponent);
