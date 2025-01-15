@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { asyncWithLDProvider, useFlags } from "launchdarkly-react-client-sdk";
 import { useAuth } from "./AuthContext";
 import { useLogger } from "../utils/logger";
-import { createLDContexts, FeatureFlags } from "../config/launchDarkly";
+import { createLDContexts, createApplicationContext, FeatureFlags } from "../config/launchDarkly";
 
 /**
  * LaunchDarkly Provider Component
@@ -27,7 +27,7 @@ export const LDProvider = ({ children }) => {
       try {
         const Provider = await asyncWithLDProvider({
           clientSideID: process.env.REACT_APP_LD_CLIENTSIDE_ID,
-          context: createLDContexts(null) // Initial context with no user
+          context: createApplicationContext() // Initialize with application context only
         });
         
         logger.debug("LaunchDarkly client initialized successfully");

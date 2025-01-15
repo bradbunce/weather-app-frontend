@@ -41,6 +41,18 @@ export const createLDContexts = (userData) => {
   };
 };
 
+/**
+ * Creates an application-only context for LaunchDarkly evaluation
+ * Used for application-wide features like logging
+ * 
+ * @returns {Object} Application context object
+ */
+export const createApplicationContext = () => ({
+  kind: 'application',
+  key: process.env.REACT_APP_NAME || 'weather-app-frontend',
+  environment: process.env.REACT_APP_ENVIRONMENT || 'development'
+});
+
 // Feature flag keys
 export const FeatureFlags = {
   FRONTEND_CONSOLE_LOGGING: 'frontend-console-logging',

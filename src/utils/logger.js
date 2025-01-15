@@ -1,6 +1,5 @@
-// src/utils/logger.js
 import { useLDClient } from "launchdarkly-react-client-sdk";
-import { FeatureFlags } from "../config/launchDarkly";
+import { FeatureFlags, createApplicationContext } from "../config/launchDarkly";
 
 export const LogLevel = {
   ERROR: 0,
@@ -21,8 +20,19 @@ class Logger {
   }
 
   getCurrentLogLevel() {
-    // Get numeric value from LD flag, default to ERROR (0) if flag is not found
-    return this.ldClient?.variation(this.FLAG_KEY, LogLevel.ERROR) ?? LogLevel.ERROR;
+    if (!this.ldClient) {
+      console.warn('🟡 Logger: LaunchDarkly client not available');
+      return LogLevel.ERROR;
+    }
+
+    try {
+      // Use application context for logging level evaluation
+      const context = createApplicationContext();
+      return this.ldClient.variation(this.FLAG_KEY, context, LogLevel.ERROR);
+    } catch (error) {
+      console.error('🔴 Logger: Error evaluating log level flag', error);
+      return LogLevel.ERROR;
+    }
   }
 
   shouldLog(level) {
