@@ -42,6 +42,7 @@ const AuthProviderComponent = ({ children, flags, ldClient }) => {
           });
 
           const userData = response.data.user;
+          logger.debug('User data from response:', userData);
           logger.info("Token validation successful", { userId: userData.id });
           setUser({ ...userData, token: storedToken });
           setIsAuthenticated(true);
