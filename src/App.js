@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // UI Components and Styling
 import { Container } from "react-bootstrap";
@@ -9,6 +9,7 @@ import { Home } from "./components/Home";
 import { Login } from "./components/Login";
 import { Register } from "./components/Register";
 import { Dashboard } from "./components/Dashboard";
+import { LoadingSpinner } from "./components/LoadingSpinner";
 // Context Providers
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LDProvider } from "./contexts/LaunchDarklyContext";
@@ -18,31 +19,50 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
+const AppInitializer = ({ ldReady, authReady, children }) => {
+  const isLoading = !ldReady || !authReady;
+
+  if (isLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center min-vh-100">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  return children;
+};
+
 export const App = () => {
+  const [ldReady, setLdReady] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+
   return (
-    <LDProvider>
+    <LDProvider onReady={() => setLdReady(true)}>
       <BrowserRouter>
-        <AuthProvider>
-          <div className="d-flex flex-column min-vh-100">
-            <NavigationBar />
-            <Container className="py-4 flex-grow-1">
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                {/* Protected Routes */}
-                <Route
-                  path="/dashboard"
-                  element={
-                    <PrivateRoute>
-                      <Dashboard />
-                    </PrivateRoute>
-                  }
-                />
-              </Routes>
-            </Container>
-          </div>
+        <AuthProvider onReady={() => setAuthReady(true)}>
+          <AppInitializer ldReady={ldReady} authReady={authReady}>
+            <div className="d-flex flex-column min-vh-100">
+              <NavigationBar />
+              <Container className="py-4 flex-grow-1">
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<Home />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  {/* Protected Routes */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <PrivateRoute>
+                        <Dashboard />
+                      </PrivateRoute>
+                    }
+                  />
+                </Routes>
+              </Container>
+            </div>
+          </AppInitializer>
         </AuthProvider>
       </BrowserRouter>
     </LDProvider>

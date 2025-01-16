@@ -9,14 +9,13 @@ import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from "axios";
 import { useLogger } from "../utils/logger";
 import { createLDContexts } from "../config/launchDarkly";
-import { LoadingSpinner } from '../components/LoadingSpinner';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = "authToken";
 
 const AuthContext = createContext(null);
 
-const AuthProviderComponent = ({ children, flags, ldClient }) => {
+const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   const logger = useLogger();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -32,7 +31,7 @@ const AuthProviderComponent = ({ children, flags, ldClient }) => {
     const initializeAuth = async () => {
       logger.info("Initializing authentication state");
       const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-
+  
       if (storedToken) {
         logger.debug("Found stored token, validating...");
         try {
@@ -41,7 +40,7 @@ const AuthProviderComponent = ({ children, flags, ldClient }) => {
               Authorization: formatTokenForApi(storedToken, true),
             },
           });
-
+  
           const userData = response.data.user;
           logger.debug("User data from response:", userData);
           logger.info("Token validation successful", { userId: userData.id });
@@ -60,15 +59,16 @@ const AuthProviderComponent = ({ children, flags, ldClient }) => {
           delete axios.defaults.headers.common["Authorization"];
         }
       }
-
+  
       setIsLoading(false);
+      onReady?.(); // Call onReady when auth initialization is complete
       logger.debug("Auth initialization complete", {
         isAuthenticated: Boolean(storedToken),
       });
     };
-
+  
     initializeAuth();
-  }, [logger, formatTokenForApi]);
+  }, [logger, formatTokenForApi, onReady]);
 
   // Update LaunchDarkly context when user changes
   useEffect(() => {
@@ -328,7 +328,7 @@ const AuthProviderComponent = ({ children, flags, ldClient }) => {
 
   if (isLoading) {
     logger.trace("Rendering loading state");
-    return <LoadingSpinner />;
+    return null;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
