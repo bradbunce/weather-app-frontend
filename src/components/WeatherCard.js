@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { Card, Button, Spinner } from "react-bootstrap";
 import { useAuth } from "../contexts/AuthContext";
+import { useLogger } from "../utils/logger";
 
 const WEBSOCKET_API_URL = process.env.REACT_APP_WEBSOCKET_API;
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -15,6 +16,7 @@ const CONNECTION_TIMEOUT = 5000;
 
 export const WeatherCard = React.memo(({ location, onRemove }) => {
   const { user } = useAuth();
+  const logger = useLogger();
 
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,11 +39,17 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
   );
 
   // Centralized error handling
-  const handleError = useCallback((errorMessage) => {
+  const handleError = useCallback((errorMessage, error) => {
+    logger.error("WeatherCard error", {
+      message: errorMessage,
+      location: location?.city_name,
+      error: error?.message,
+      stack: error?.stack
+    });
     setError(errorMessage);
     setLoading(false);
     setIsConnected(false);
-  }, []);
+  }, [logger, location?.city_name]);
 
   // Clean up WebSocket connections
   const cleanupWebSocket = useCallback(() => {
@@ -64,6 +72,11 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
   // WebSocket connection logic
   const connectWebSocket = useCallback(() => {
     // Validation checks
+    logger.debug("Attempting WebSocket connection", {
+      location: connectionParams.cityName,
+      attempt: attemptRef.current + 1
+    });
+
     if (!connectionParams.token) {
       return handleError("Authentication required");
     }
@@ -105,6 +118,9 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
           clearTimeout(connectionTimeoutRef.current);
           setIsConnected(true);
           attemptRef.current = 0;
+          logger.info("WebSocket connected", {
+            location: connectionParams.cityName
+          });
 
           // Track WebSocket via a global set
           window.activeWebSockets = window.activeWebSockets || new Set();
@@ -123,7 +139,7 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                   })
                 );
               } catch (err) {
-                handleError("Failed to subscribe to updates");
+                handleError("Failed to subscribe to updates", err);
               }
             }
           }, 1000);
@@ -133,6 +149,10 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            logger.debug("Received WebSocket message", {
+              type: data.type,
+              location: connectionParams.cityName
+            });
 
             if (data.type === "error") {
               return handleError(data.message);
@@ -149,7 +169,13 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                 : data.data;
 
               if (locationData) {
-                setWeather(locationData.weather || locationData);
+                const weatherData = locationData.weather || locationData;
+                logger.debug("Weather data updated", {
+                  location: connectionParams.cityName,
+                  temperature: weatherData.temperature,
+                  condition: weatherData.condition
+                });
+                setWeather(weatherData);
                 setError("");
                 setLoading(false);
               } else {
@@ -157,12 +183,12 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
               }
             }
           } catch (err) {
-            handleError("Error processing weather data");
+            handleError("Error processing weather data", err);
           }
         };
 
         // Error and close handlers
-        ws.onerror = () => handleError("Connection error");
+        ws.onerror = (error) => handleError("Connection error", error);
 
         ws.onclose = (event) => {
           // Remove from active WebSockets
@@ -170,22 +196,31 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             window.activeWebSockets.delete(ws);
           }
 
-          // Existing onclose logic remains the same
+          logger.debug("WebSocket closed", {
+            location: connectionParams.cityName,
+            code: event.code,
+            clean: event.code === 1000
+          });
+
           setIsConnected(false);
           wsRef.current = null;
 
           if (event.code !== 1000) {
             attemptRef.current++;
+            logger.info("Attempting reconnection", {
+              location: connectionParams.cityName,
+              attempt: attemptRef.current
+            });
             connectWebSocket();
           }
         };
 
         wsRef.current = ws;
-      } catch {
-        handleError("Failed to establish connection");
+      } catch (error) {
+        handleError("Failed to establish connection", error);
       }
     }, backoffDelay);
-  }, [connectionParams, handleError, cleanupWebSocket]);
+    }, [connectionParams, handleError, cleanupWebSocket, logger]);
 
   // Main connection effect
   useEffect(() => {
@@ -231,7 +266,11 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
           wsRef.current.close();
           wsRef.current = null;
         } catch (error) {
-          console.error("Error closing WebSocket on logout:", error);
+          logger.error("Error closing WebSocket on logout", {
+            error: error.message,
+            stack: error.stack,
+            location: connectionParams.cityName
+          });
         }
       }
 
@@ -263,13 +302,15 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
     return () => {
       window.removeEventListener("auth-logout", handleLogout);
     };
-  }, [user, connectionParams]);
+  }, [user, connectionParams, logger]);
 
   // Refresh handler
   const handleRefresh = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       try {
-        console.log("Sending refresh request...");
+        logger.debug("Sending refresh request", {
+          location: connectionParams.cityName
+        });
         wsRef.current.send(
           JSON.stringify({
             action: "getWeather",
@@ -280,17 +321,18 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
         );
         setLoading(true);
       } catch (err) {
-        console.error("Refresh request failed:", err);
-        handleError("Failed to send refresh request");
+        handleError("Failed to send refresh request", err);
         setLoading(false);
       }
     } else {
-      console.log("WebSocket not connected, attempting reconnect...");
+      logger.info("WebSocket not connected, attempting reconnect", {
+        location: connectionParams.cityName
+      });
       handleError("Connection lost. Attempting to reconnect...");
       attemptRef.current = 0;
       connectWebSocket();
     }
-  }, [connectionParams, handleError, connectWebSocket]);
+  }, [connectionParams, handleError, connectWebSocket, logger]);
 
   // Loading message generator
   const loadingMessage = useMemo(() => {
