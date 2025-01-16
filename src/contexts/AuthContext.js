@@ -103,90 +103,87 @@ const AuthProviderComponent = ({ children, flags, ldClient }) => {
   }, [user, logger, ldClient]);
 
   const login = async (credentials) => {
-    logger.info("Attempting login", { username: credentials.username });
+    logger.info('Attempting login', { username: credentials.username });
     try {
       setIsLoading(true);
       const response = await axios.post(
         `${AUTH_API_URL}/login`,
         {
           username: credentials.username,
-          password: credentials.password,
+          password: credentials.password
         },
         {
           headers: {
-            "Content-Type": "application/json",
-          },
+            'Content-Type': 'application/json'
+          }
         }
       );
-
-      const responseData =
-        typeof response.data === "string"
-          ? JSON.parse(response.data)
-          : response.data;
-
+  
+      const responseData = typeof response.data === 'string'
+        ? JSON.parse(response.data)
+        : response.data;
+  
       if (responseData.error) {
         throw new Error(responseData.error);
       }
-
+  
       const { token, user: userData } = responseData;
-
+  
+      // Get userId from token payload
+      const tokenParts = token.split('.');
+      const tokenPayload = JSON.parse(atob(
+        tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')
+          .padEnd(tokenParts[1].length + (4 - tokenParts[1].length % 4) % 4, '=')
+      ));
+      const userId = tokenPayload.userId;
+  
       // Manual token inspection
-      logger.debug("Token details:", {
+      logger.debug('Token details:', {
         tokenLength: token.length,
         tokenStart: token.substring(0, 20),
-        tokenParts: token.split(".").map((part, index) => {
-          if (index === 2) return "Signature";
-          try {
-            const decodedPart = atob(
-              part
-                .replace(/-/g, "+")
-                .replace(/_/g, "/")
-                .padEnd(part.length + ((4 - (part.length % 4)) % 4), "=")
-            );
-            return JSON.parse(decodedPart);
-          } catch (error) {
-            return "Decoding Failed";
-          }
-        }),
+        tokenPayload,
+        tokenExpiry: new Date(tokenPayload.exp * 1000),
+        isExpired: Date.now() >= tokenPayload.exp * 1000
       });
-
+  
       if (!token || !userData) {
-        logger.error("Invalid server response format", {
-          hasToken: Boolean(token),
-          hasUserData: Boolean(userData),
+        logger.error('Invalid server response format', { 
+          hasToken: Boolean(token), 
+          hasUserData: Boolean(userData) 
         });
-        throw new Error("Invalid response format from server");
+        throw new Error('Invalid response format from server');
       }
-
+  
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      setUser({ ...userData, token });
-      setIsAuthenticated(true);
-      axios.defaults.headers.common["Authorization"] = formatTokenForApi(
+      setUser({ 
+        ...userData, 
         token,
-        true
-      );
-
-      logger.info("Login successful", {
-        userId: userData.id,
-        username: userData.username,
+        id: userId 
+      });
+      setIsAuthenticated(true);
+      axios.defaults.headers.common['Authorization'] = formatTokenForApi(token, true);
+  
+      logger.info('Login successful', { 
+        userId,
+        username: userData.username 
       });
       return true;
     } catch (error) {
-      logger.error("Login failed", {
+      logger.error('Login failed', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status,
+        status: error.response?.status
       });
-
+  
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
-      delete axios.defaults.headers.common["Authorization"];
-
+      delete axios.defaults.headers.common['Authorization'];
+  
       throw new Error(
         error.response?.data?.message ||
-          error.message ||
-          "Login failed. Please try again."
+        error.message ||
+        'Login failed. Please try again.'
       );
     } finally {
       setIsLoading(false);
