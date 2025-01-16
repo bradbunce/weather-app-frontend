@@ -1,8 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { Card, CardBody } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Form, Button, Card, Alert, Container, Row, Col } from "react-bootstrap";
 
 export default function Profile() {
   const { updatePassword } = useAuth();
@@ -39,64 +37,41 @@ export default function Profile() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-md p-4">
-        <Card>
-          <CardBody>
-            <h2 className="text-2xl font-bold text-center mb-4">Update Password</h2>
-            
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
-            {message && (
-              <Alert className="mb-4">
-                <AlertDescription>{message}</AlertDescription>
-              </Alert>
-            )}
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-1">
-                  New Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  ref={passwordRef}
-                  required
-                  placeholder="Enter new password"
-                  className="w-full p-2 border rounded-md"
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="password-confirm" className="block text-sm font-medium mb-1">
-                  Confirm New Password
-                </label>
-                <input
-                  id="password-confirm"
-                  type="password"
-                  ref={passwordConfirmRef}
-                  required
-                  placeholder="Confirm new password"
-                  className="w-full p-2 border rounded-md"
-                />
-              </div>
-              
-              <Button 
-                disabled={loading}
-                type="submit"
-                className="w-full"
-              >
-                Update Password
-              </Button>
-            </form>
-          </CardBody>
-        </Card>
-      </div>
-    </div>
+    <Container>
+      <Row className="justify-content-md-center">
+        <Col md={6}>
+          <Card>
+            <Card.Body>
+              <h2 className="text-center mb-4">Update Password</h2>
+              {error && <Alert variant="danger">{error}</Alert>}
+              {message && <Alert variant="success">{message}</Alert>}
+              <Form onSubmit={handleSubmit}>
+                <Form.Group className="mb-3" controlId="password">
+                  <Form.Label>New Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    ref={passwordRef}
+                    required
+                    placeholder="Enter new password"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3" controlId="password-confirm">
+                  <Form.Label>Confirm New Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    ref={passwordConfirmRef}
+                    required
+                    placeholder="Confirm new password"
+                  />
+                </Form.Group>
+                <Button className="w-100" type="submit" disabled={loading}>
+                  {loading ? "Updating..." : "Update Password"}
+                </Button>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
   );
 }
