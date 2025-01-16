@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { asyncWithLDProvider } from "launchdarkly-react-client-sdk";
 import { createLDContexts } from "../config/launchDarkly";
 
@@ -6,9 +6,13 @@ const LDContext = createContext();
 
 export const LDProvider = ({ children, onReady }) => {
   const [LDClient, setLDClient] = useState(null);
+  const initializationRef = useRef(false);
 
   useEffect(() => {
     const initializeLDClient = async () => {
+      if (initializationRef.current) return; // Prevent multiple initializations
+      initializationRef.current = true;
+
       try {
         // Initialize with multi-context right away (null user = anonymous)
         const initialContexts = createLDContexts(null);
@@ -27,7 +31,7 @@ export const LDProvider = ({ children, onReady }) => {
   }, [onReady]);
 
   if (!LDClient) {
-    return <div />; // Return empty div instead of null while loading
+    return <div />;
   }
 
   return (
