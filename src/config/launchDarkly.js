@@ -9,6 +9,7 @@ export const ContextKinds = {
     kind: 'user',
     // Function to create user context from user data
     createContext: (userData) => ({
+      kind: 'user',
       key: userData?.username || 'anonymous',
       name: userData?.name,
       email: userData?.email,
@@ -21,8 +22,9 @@ export const ContextKinds = {
     kind: 'application',
     // Function to create application context
     createContext: () => ({
-      key: process.env.REACT_APP_NAME || 'weather-app-frontend',
-      environment: process.env.REACT_APP_ENVIRONMENT || 'development'
+      kind: 'application',
+      key: process.env.REACT_APP_NAME,
+      environment: process.env.REACT_APP_ENVIRONMENT
     })
   }
 };
@@ -36,24 +38,20 @@ export const ContextKinds = {
  */
 export const createLDContexts = (userData) => {
   return {
+    kind: 'multi',  // Added this
     user: ContextKinds.USER.createContext(userData),
     application: ContextKinds.APPLICATION.createContext()
   };
 };
 
 /**
- * Creates an application-only context for LaunchDarkly evaluation
- * Used for application-wide features like logging
- * 
- * @returns {Object} Application context object
+ * Evaluates application-specific flags using only the application context
  */
-export const createApplicationContext = () => ({
-  kind: 'application',
-  key: process.env.REACT_APP_NAME || 'weather-app-frontend',
-  environment: process.env.REACT_APP_ENVIRONMENT || 'development'
-});
+export const evaluateApplicationFlag = (ldClient, flagKey) => {
+  const applicationContext = ContextKinds.APPLICATION.createContext();
+  return ldClient.variation(flagKey, applicationContext, false);
+};
 
-// Feature flag keys
 export const FeatureFlags = {
   FRONTEND_CONSOLE_LOGGING: 'frontend-console-logging',
   // Add other feature flag keys here
