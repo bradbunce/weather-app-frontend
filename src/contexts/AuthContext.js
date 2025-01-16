@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from 'axios';
 import { useLogger } from '../utils/logger';
-import { evaluateApplicationFlag, FeatureFlags, createLDContexts } from '../config/launchDarkly';
+import { createLDContexts } from '../config/launchDarkly';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = 'authToken';
@@ -19,17 +19,6 @@ const AuthProviderComponent = ({ children, flags, ldClient }) => {
   const formatTokenForApi = useCallback((token, needsBearer = true) => {
     return needsBearer ? `Bearer ${token}` : token;
   }, []);
-
-  // Effect for console logging flag
-  useEffect(() => {
-    if (ldClient) {
-      const loggingEnabled = evaluateApplicationFlag(
-        ldClient, 
-        FeatureFlags.FRONTEND_CONSOLE_LOGGING
-      );
-      logger.setEnabled(loggingEnabled);
-    }
-  }, [ldClient, logger]);
 
   // Check for existing token on mount
   useEffect(() => {
