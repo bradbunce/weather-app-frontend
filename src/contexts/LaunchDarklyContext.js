@@ -16,7 +16,7 @@ export const LDProvider = ({ children }) => {
         const LDProviderComponent = await asyncWithLDProvider({
           clientSideID: process.env.REACT_APP_LD_CLIENTSIDE_ID,
           context: initialContexts,  // Set initial context here
-          timeout: 3
+          timeout: 2  // Set client init timeout (seconds)
         });
         setLDClient(() => LDProviderComponent);
       } catch (error) {
