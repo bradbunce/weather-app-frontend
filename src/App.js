@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // UI Components and Styling
 import { Container } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";

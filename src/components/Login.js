@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
-import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState } from "react";
+import {
+  Form,
+  Button,
+  Card,
+  Alert,
+  Container,
+  Row,
+  Col,
+} from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export const Login = () => {
   const [credentials, setCredentials] = useState({
-    username: '',
-    password: ''
+    username: "",
+    password: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -16,17 +24,13 @@ export const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      setError('');
+      setError("");
       setLoading(true);
       await login(credentials);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err) {
-      console.error('Login error:', err);
-      setError(
-        err.response?.data?.error ||
-        err.message ||
-        'Failed to log in'
-      );
+      console.error("Login error:", err);
+      setError(err.response?.data?.error || err.message || "Failed to log in");
     } finally {
       setLoading(false);
     }
@@ -34,9 +38,9 @@ export const Login = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setCredentials(prev => ({
+    setCredentials((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -69,12 +73,8 @@ export const Login = () => {
                     required
                   />
                 </Form.Group>
-                <Button
-                  className="w-100"
-                  type="submit"
-                  disabled={loading}
-                >
-                  {loading ? 'Logging in...' : 'Login'}
+                <Button className="w-100" type="submit" disabled={loading}>
+                  {loading ? "Logging in..." : "Login"}
                 </Button>
               </Form>
             </Card.Body>

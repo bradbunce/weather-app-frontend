@@ -1,6 +1,6 @@
-import React from 'react';
-import { Container, Row, Col, Button } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { Container, Row, Col, Button } from "react-bootstrap";
+import { Link } from "react-router-dom";
 
 export const Home = () => {
   return (
@@ -21,12 +21,7 @@ export const Home = () => {
             >
               Get Started
             </Button>
-            <Button
-              as={Link}
-              to="/login"
-              variant="outline-primary"
-              size="lg"
-            >
+            <Button as={Link} to="/login" variant="outline-primary" size="lg">
               Login
             </Button>
           </div>

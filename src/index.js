@@ -11,5 +11,11 @@ const root = createRoot(container);
 const isDevelopment = process.env.REACT_APP_ENVIRONMENT === "development";
 
 root.render(
-  isDevelopment ? <React.StrictMode><App /></React.StrictMode> : <App />
+  isDevelopment ? (
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  ) : (
+    <App />
+  )
 );

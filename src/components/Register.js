@@ -1,45 +1,53 @@
-import React, { useState } from 'react';
-import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState } from "react";
+import {
+  Form,
+  Button,
+  Card,
+  Alert,
+  Container,
+  Row,
+  Col,
+} from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 
 export const Register = () => {
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    confirmPassword: ''
+    username: "",
+    password: "",
+    confirmPassword: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      return setError('Passwords do not match');
+      return setError("Passwords do not match");
     }
 
     try {
-      setError('');
+      setError("");
       setLoading(true);
       const response = await axios.post(`${AUTH_API_URL}/register`, {
         username: formData.username,
-        password: formData.password
+        password: formData.password,
       });
 
       if (response.data.error) {
         throw new Error(response.data.error);
       }
-      navigate('/login');
+      navigate("/login");
     } catch (err) {
-      console.error('Registration error:', err);
+      console.error("Registration error:", err);
       setError(
         err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        'Failed to create an account'
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to create an account"
       );
     } finally {
       setLoading(false);
@@ -48,9 +56,9 @@ export const Register = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -65,7 +73,7 @@ export const Register = () => {
                 <Alert
                   variant="danger"
                   dismissible
-                  onClose={() => setError('')}
+                  onClose={() => setError("")}
                 >
                   {error}
                 </Alert>
@@ -107,12 +115,8 @@ export const Register = () => {
                     placeholder="Confirm password"
                   />
                 </Form.Group>
-                <Button
-                  className="w-100"
-                  type="submit"
-                  disabled={loading}
-                >
-                  {loading ? 'Creating Account...' : 'Register'}
+                <Button className="w-100" type="submit" disabled={loading}>
+                  {loading ? "Creating Account..." : "Register"}
                 </Button>
               </Form>
             </Card.Body>

@@ -6,7 +6,7 @@ export const LogLevel = {
   WARN: 2,
   INFO: 3,
   DEBUG: 4,
-  TRACE: 5
+  TRACE: 5,
 };
 
 class Logger {
@@ -21,7 +21,9 @@ class Logger {
 
   getCurrentLogLevel() {
     // Get numeric value from LD flag, default to ERROR (0) if flag is not found
-    return this.ldClient?.variation(this.FLAG_KEY, LogLevel.ERROR) ?? LogLevel.ERROR;
+    return (
+      this.ldClient?.variation(this.FLAG_KEY, LogLevel.ERROR) ?? LogLevel.ERROR
+    );
   }
 
   shouldLog(level) {
@@ -30,25 +32,25 @@ class Logger {
 
   fatal(...args) {
     if (this.shouldLog(LogLevel.FATAL)) {
-      console.error('💀', ...args);
+      console.error("💀", ...args);
     }
   }
 
   error(...args) {
     if (this.shouldLog(LogLevel.ERROR)) {
-      console.error('🔴', ...args);
+      console.error("🔴", ...args);
     }
   }
 
   warn(...args) {
     if (this.shouldLog(LogLevel.WARN)) {
-      console.warn('🟡', ...args);
+      console.warn("🟡", ...args);
     }
   }
 
   info(...args) {
     if (this.shouldLog(LogLevel.INFO)) {
-      console.info('🔵', ...args);
+      console.info("🔵", ...args);
     }
   }
 
@@ -59,13 +61,13 @@ class Logger {
 
   debug(...args) {
     if (this.shouldLog(LogLevel.DEBUG)) {
-      console.debug('⚪', ...args);
+      console.debug("⚪", ...args);
     }
   }
 
   trace(...args) {
     if (this.shouldLog(LogLevel.TRACE)) {
-      console.trace('🟣', ...args);
+      console.trace("🟣", ...args);
     }
   }
 
@@ -101,11 +103,11 @@ export const logger = new Logger();
 // React hook to use the logger
 export const useLogger = () => {
   const ldClient = useLDClient();
-  
+
   // Set the LD client whenever it changes
   if (ldClient) {
     logger.setLDClient(ldClient);
   }
-  
+
   return logger;
 };

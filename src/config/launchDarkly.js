@@ -6,41 +6,41 @@
 export const ContextKinds = {
   // User-specific context for features that vary by user
   USER: {
-    kind: 'user',
+    kind: "user",
     // Function to create user context from user data
     createContext: (userData) => ({
-      kind: 'user',
-      key: userData?.username || 'anonymous',
+      kind: "user",
+      key: userData?.username || "anonymous",
       name: userData?.name,
       email: userData?.email,
-      anonymous: !userData?.username
-    })
+      anonymous: !userData?.username,
+    }),
   },
 
   // Application-wide context for global features
   APPLICATION: {
-    kind: 'application',
+    kind: "application",
     // Function to create application context
     createContext: () => ({
-      kind: 'application',
+      kind: "application",
       key: process.env.REACT_APP_NAME,
-      environment: process.env.REACT_APP_ENVIRONMENT
-    })
-  }
+      environment: process.env.REACT_APP_ENVIRONMENT,
+    }),
+  },
 };
 
 /**
  * Creates a multi-context object for LaunchDarkly evaluation
  * Combines user and application contexts into a single context object
- * 
+ *
  * @param {Object} userData - User data for user context
  * @returns {Object} Multi-context object for LaunchDarkly
  */
 export const createLDContexts = (userData) => {
   return {
-    kind: 'multi',  // Added this
+    kind: "multi", // Added this
     user: ContextKinds.USER.createContext(userData),
-    application: ContextKinds.APPLICATION.createContext()
+    application: ContextKinds.APPLICATION.createContext(),
   };
 };
 
@@ -53,6 +53,6 @@ export const evaluateApplicationFlag = (ldClient, flagKey) => {
 };
 
 export const FeatureFlags = {
-  FRONTEND_CONSOLE_LOGGING: 'frontend-console-logging',
+  FRONTEND_CONSOLE_LOGGING: "frontend-console-logging",
   // Add other feature flag keys here
 };
