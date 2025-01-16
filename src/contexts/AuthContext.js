@@ -9,7 +9,7 @@ const TOKEN_STORAGE_KEY = 'authToken';
 
 const AuthContext = createContext(null);
 
-const AuthProviderComponent = ({ children, flags }) => {
+const AuthProviderComponent = ({ children, flags, ldClient }) => {
   const logger = useLogger();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -62,8 +62,8 @@ const AuthProviderComponent = ({ children, flags }) => {
   // Update LaunchDarkly context when user changes
   useEffect(() => {
     const updateLDContext = async () => {
-      if (!window.launchDarkly?.client) {
-        logger.warn('LaunchDarkly client not found in window object');
+      if (!ldClient) {
+        logger.debug('LaunchDarkly client not yet initialized');
         return;
       }
 
@@ -73,7 +73,7 @@ const AuthProviderComponent = ({ children, flags }) => {
       });
 
       try {
-        await window.launchDarkly.client.identify(createLDContexts(user));
+        await ldClient.identify(createLDContexts(user));
         logger.debug('LaunchDarkly contexts updated successfully');
       } catch (error) {
         logger.error('Error updating LaunchDarkly contexts', {
@@ -84,7 +84,7 @@ const AuthProviderComponent = ({ children, flags }) => {
     };
 
     updateLDContext();
-  }, [user, logger]);
+  }, [user, logger, ldClient]);
 
   const login = async (credentials) => {
     logger.info('Attempting login', { username: credentials.username });
