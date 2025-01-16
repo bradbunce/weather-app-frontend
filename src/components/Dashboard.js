@@ -3,6 +3,7 @@ import { Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
 import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
 import { useAuth } from "../contexts/AuthContext";
+import { LoadingSpinner } from './LoadingSpinner';
 
 const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;
 
@@ -287,7 +288,7 @@ export const Dashboard = () => {
   if (loading) {
     return (
       <Container>
-        <div className="text-center my-4">Loading...</div>
+        <LoadingSpinner />
       </Container>
     );
   }
