@@ -9,6 +9,7 @@ import { Home } from "./components/Home";
 import { Login } from "./components/Login";
 import { Register } from "./components/Register";
 import { Dashboard } from "./components/Dashboard";
+import Profile from "./components/Profile";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 // Context Providers
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -44,6 +45,14 @@ export const App = () => {
               element={
                 <PrivateRoute>
                   <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <Profile />
                 </PrivateRoute>
               }
             />

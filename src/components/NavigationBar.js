@@ -35,6 +35,9 @@ export const NavigationBar = () => {
                 <Nav.Link as={Link} to="/dashboard">
                   Dashboard
                 </Nav.Link>
+                <Nav.Link as={Link} to="/profile">
+                  Profile
+                </Nav.Link>
                 <Button variant="link" as={Nav.Link} onClick={handleLogout}>
                   Logout
                 </Button>

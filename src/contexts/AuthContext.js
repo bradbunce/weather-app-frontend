@@ -317,6 +317,38 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     }
   };
 
+  const updatePassword = async (newPassword) => {
+    logger.info("Attempting to update password");
+    try {
+      const response = await axios.post(
+        `${AUTH_API_URL}/update-password`,
+        { password: newPassword },
+        {
+          headers: {
+            Authorization: formatTokenForApi(user.token, true),
+          },
+        }
+      );
+
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      logger.info("Password updated successfully");
+      return true;
+    } catch (error) {
+      logger.error("Password update failed", {
+        error: error.message,
+        stack: error.stack,
+      });
+      throw new Error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to update password. Please try again."
+      );
+    }
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -324,6 +356,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     login,
     logout,
     refreshToken,
+    updatePassword,
   };
 
   if (isLoading) {
