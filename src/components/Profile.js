@@ -1,9 +1,11 @@
 import React, { useState, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { Card, Form, Button, Alert, Container } from "react-bootstrap";
+import { Card, CardBody } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export default function Profile() {
-  const { currentUser, updatePassword } = useAuth();
+  const { updatePassword } = useAuth();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -12,11 +14,11 @@ export default function Profile() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-
+    
     if (passwordRef.current.value !== passwordConfirmRef.current.value) {
       return setError("Passwords do not match");
     }
-
+    
     if (passwordRef.current.value.length < 6) {
       return setError("Password must be at least 6 characters");
     }
@@ -37,39 +39,64 @@ export default function Profile() {
   }
 
   return (
-    <Container className="d-flex align-items-center justify-content-center" style={{ minHeight: "80vh" }}>
-      <div className="w-100" style={{ maxWidth: "400px" }}>
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="w-full max-w-md p-4">
         <Card>
-          <Card.Body>
-            <h2 className="text-center mb-4">Update Password</h2>
-            {error && <Alert variant="danger">{error}</Alert>}
-            {message && <Alert variant="success">{message}</Alert>}
-            <Form onSubmit={handleSubmit}>
-              <Form.Group id="password" className="mb-3">
-                <Form.Label>New Password</Form.Label>
-                <Form.Control
+          <CardBody>
+            <h2 className="text-2xl font-bold text-center mb-4">Update Password</h2>
+            
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {message && (
+              <Alert className="mb-4">
+                <AlertDescription>{message}</AlertDescription>
+              </Alert>
+            )}
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium mb-1">
+                  New Password
+                </label>
+                <input
+                  id="password"
                   type="password"
                   ref={passwordRef}
                   required
                   placeholder="Enter new password"
+                  className="w-full p-2 border rounded-md"
                 />
-              </Form.Group>
-              <Form.Group id="password-confirm" className="mb-3">
-                <Form.Label>Confirm New Password</Form.Label>
-                <Form.Control
+              </div>
+              
+              <div>
+                <label htmlFor="password-confirm" className="block text-sm font-medium mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  id="password-confirm"
                   type="password"
                   ref={passwordConfirmRef}
                   required
                   placeholder="Confirm new password"
+                  className="w-full p-2 border rounded-md"
                 />
-              </Form.Group>
-              <Button disabled={loading} className="w-100" type="submit">
+              </div>
+              
+              <Button 
+                disabled={loading}
+                type="submit"
+                className="w-full"
+              >
                 Update Password
               </Button>
-            </Form>
-          </Card.Body>
+            </form>
+          </CardBody>
         </Card>
       </div>
-    </Container>
+    </div>
   );
 }
