@@ -1,43 +1,37 @@
-import React from "react";
-import { useFlags } from "launchdarkly-react-client-sdk";
-import { useLogger } from "../utils/logger";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { asyncWithLDProvider } from "launchdarkly-react-client-sdk";
 
-const LDProviderComponent = ({ children }) => {
-  const ldClient = window.launchDarkly?.client;
-  const logger = useLogger();
+const LDContext = createContext();
 
-  React.useEffect(() => {
-    if (ldClient) {
-      logger.debug('LaunchDarkly client available in context');
-    }
-  }, [ldClient, logger]);
+export const LDProvider = ({ children }) => {
+  const [LDClient, setLDClient] = useState(null);
 
-  if (!ldClient) {
-    logger.debug('Awaiting LaunchDarkly client initialization');
-    return <div>Loading feature flags...</div>;
+  useEffect(() => {
+    const initializeLDClient = async () => {
+      try {
+        const LDProviderComponent = await asyncWithLDProvider({
+          clientSideID: process.env.REACT_APP_LD_CLIENTSIDE_ID,
+        });
+        setLDClient(() => LDProviderComponent);
+      } catch (error) {
+        console.error("Error initializing LaunchDarkly:", error);
+      }
+    };
+
+    initializeLDClient();
+  }, []);
+
+  if (!LDClient) {
+    return <div>Loading...</div>;
   }
 
-  return <>{children}</>;
+  return (
+    <LDContext.Provider value={LDClient}>
+      <LDClient>{children}</LDClient>
+    </LDContext.Provider>
+  );
 };
 
-/**
- * Hook to access all feature flags
- * @returns {Object} Object containing all feature flag values
- */
-export const useFeatureFlags = () => {
-  return useFlags();
+export const useLDClient = () => {
+  return useContext(LDContext);
 };
-
-/**
- * Hook to access a specific feature flag
- * @param {string} flagKey - Key of the feature flag to access
- * @returns {any} Value of the specified feature flag
- */
-export const useFeatureFlag = (flagKey) => {
-  const flags = useFlags();
-  return flags[flagKey];
-};
-
-// Export feature flag hooks for easy access
-export { useFlags };
-export { LDProviderComponent as LDProvider };
