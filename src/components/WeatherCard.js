@@ -13,7 +13,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_BACKOFF_DELAY = 500;
 const CONNECTION_TIMEOUT = 5000;
 
-const WeatherCard = React.memo(({ location, onRemove }) => {
+export const WeatherCard = React.memo(({ location, onRemove }) => {
   const { user } = useAuth();
 
   const [weather, setWeather] = useState(null);
@@ -376,5 +376,3 @@ const WeatherCard = React.memo(({ location, onRemove }) => {
     </Card>
   );
 });
-
-export default WeatherCard;

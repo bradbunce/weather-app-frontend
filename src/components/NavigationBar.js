@@ -3,7 +3,7 @@ import { Navbar, Nav, Container, Button } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const NavigationBar = () => {
+export const NavigationBar = () => {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -27,9 +27,9 @@ const NavigationBar = () => {
             ) : (
               <>
                 <Nav.Link as={Link} to="/dashboard">Dashboard</Nav.Link>
-                <Button 
-                  variant="link" 
-                  as={Nav.Link} 
+                <Button
+                  variant="link"
+                  as={Nav.Link}
                   onClick={handleLogout}
                 >
                   Logout
@@ -42,5 +42,3 @@ const NavigationBar = () => {
     </Navbar>
   );
 };
-
-export default NavigationBar;

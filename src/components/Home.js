@@ -2,7 +2,7 @@ import React from 'react';
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
-const Home = () => {
+export const Home = () => {
   return (
     <Container className="text-center">
       <Row className="justify-content-center">
@@ -35,5 +35,3 @@ const Home = () => {
     </Container>
   );
 };
-
-export default Home;

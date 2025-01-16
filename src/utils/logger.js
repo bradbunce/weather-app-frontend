@@ -1,5 +1,4 @@
 import { useLDClient } from "launchdarkly-react-client-sdk";
-import { FeatureFlags, createApplicationContext } from "../config/launchDarkly";
 
 export const LogLevel = {
   FATAL: 0,
@@ -13,37 +12,20 @@ export const LogLevel = {
 class Logger {
   constructor() {
     this.ldClient = null;
-    this.FLAG_KEY = FeatureFlags.FRONTEND_CONSOLE_LOGGING;
-    console.log('🔧 Logger initialized with flag key:', this.FLAG_KEY);
+    this.FLAG_KEY = "frontend-console-logging";
   }
 
   setLDClient(client) {
     this.ldClient = client;
-    console.log('🔧 LaunchDarkly client set:', Boolean(this.ldClient));
   }
 
   getCurrentLogLevel() {
-    if (!this.ldClient) {
-      console.warn('🟡 Logger: LaunchDarkly client not available');
-      return LogLevel.ERROR;
-    }
-
-    try {
-      const context = createApplicationContext();
-      const level = this.ldClient.variation(this.FLAG_KEY, context, LogLevel.ERROR);
-      console.log('🔧 Retrieved log level from LaunchDarkly:', level);
-      return level;
-    } catch (error) {
-      console.error('🔴 Logger: Error evaluating log level flag', error);
-      return LogLevel.ERROR;
-    }
+    // Get numeric value from LD flag, default to ERROR (0) if flag is not found
+    return this.ldClient?.variation(this.FLAG_KEY, LogLevel.ERROR) ?? LogLevel.ERROR;
   }
 
   shouldLog(level) {
-    const currentLevel = this.getCurrentLogLevel();
-    const shouldLog = level <= currentLevel;
-    console.log(`🔍 Checking if should log level ${level} (current: ${currentLevel}): ${shouldLog}`);
-    return shouldLog;
+    return level <= this.getCurrentLogLevel();
   }
 
   fatal(...args) {
@@ -70,6 +52,11 @@ class Logger {
     }
   }
 
+  log(...args) {
+    // Alias for info
+    this.info(...args);
+  }
+
   debug(...args) {
     if (this.shouldLog(LogLevel.DEBUG)) {
       console.debug('⚪', ...args);
@@ -79,6 +66,32 @@ class Logger {
   trace(...args) {
     if (this.shouldLog(LogLevel.TRACE)) {
       console.trace('🟣', ...args);
+    }
+  }
+
+  // Group related logs
+  group(label) {
+    if (this.shouldLog(LogLevel.DEBUG)) {
+      console.group(label);
+    }
+  }
+
+  groupEnd() {
+    if (this.shouldLog(LogLevel.DEBUG)) {
+      console.groupEnd();
+    }
+  }
+
+  // For performance measurements
+  time(label) {
+    if (this.shouldLog(LogLevel.DEBUG)) {
+      console.time(label);
+    }
+  }
+
+  timeEnd(label) {
+    if (this.shouldLog(LogLevel.DEBUG)) {
+      console.timeEnd(label);
     }
   }
 }

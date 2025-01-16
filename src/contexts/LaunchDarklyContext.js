@@ -1,7 +1,24 @@
 import React from "react";
 import { useFlags } from "launchdarkly-react-client-sdk";
 import { useLogger } from "../utils/logger";
-import { FeatureFlags } from "../config/launchDarkly";
+
+const LDProviderComponent = ({ children }) => {
+  const ldClient = window.launchDarkly?.client;
+  const logger = useLogger();
+
+  React.useEffect(() => {
+    if (ldClient) {
+      logger.debug('LaunchDarkly client available in context');
+    }
+  }, [ldClient, logger]);
+
+  if (!ldClient) {
+    logger.debug('Awaiting LaunchDarkly client initialization');
+    return <div>Loading feature flags...</div>;
+  }
+
+  return <>{children}</>;
+};
 
 /**
  * Hook to access all feature flags
@@ -21,6 +38,6 @@ export const useFeatureFlag = (flagKey) => {
   return flags[flagKey];
 };
 
-// Export feature flag keys and hooks for easy access
-export { FeatureFlags };
+// Export feature flag hooks for easy access
 export { useFlags };
+export { LDProviderComponent as LDProvider };

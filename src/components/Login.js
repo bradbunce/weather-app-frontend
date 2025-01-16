@@ -3,7 +3,7 @@ import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const Login = () => {
+export const Login = () => {
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
@@ -16,21 +16,21 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-        setError('');
-        setLoading(true);
-        await login(credentials);
-        navigate('/dashboard');
+      setError('');
+      setLoading(true);
+      await login(credentials);
+      navigate('/dashboard');
     } catch (err) {
-        console.error('Login error:', err);
-        setError(
-            err.response?.data?.error || 
-            err.message || 
-            'Failed to log in'
-        );
+      console.error('Login error:', err);
+      setError(
+        err.response?.data?.error ||
+        err.message ||
+        'Failed to log in'
+      );
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,7 +59,6 @@ const Login = () => {
                     required
                   />
                 </Form.Group>
-
                 <Form.Group className="mb-3" controlId="password">
                   <Form.Label>Password</Form.Label>
                   <Form.Control
@@ -70,7 +69,6 @@ const Login = () => {
                     required
                   />
                 </Form.Group>
-
                 <Button
                   className="w-100"
                   type="submit"
@@ -86,5 +84,3 @@ const Login = () => {
     </Container>
   );
 };
-
-export default Login;

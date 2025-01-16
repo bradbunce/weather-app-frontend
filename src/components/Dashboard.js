@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Row, Col, Button, Form, Alert } from 'react-bootstrap';
 import axios from 'axios';
-import WeatherCard from './WeatherCard';
+import { WeatherCard } from './WeatherCard';
 import { useAuth } from '../contexts/AuthContext';
 
 const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;
 
-const Dashboard = () => {
+export const Dashboard = () => {
   const [locations, setLocations] = useState([]);
   const [newLocation, setNewLocation] = useState('');
   const [error, setError] = useState('');
@@ -167,6 +167,23 @@ const Dashboard = () => {
     }
   }, [user?.username, getAuthHeaders]);
 
+  const getCountryCode = (displayName) => {
+    const parts = displayName.split(',');
+    const countryPart = parts[parts.length - 1].trim();
+    
+    const countryCodeMap = {
+      'United States': 'US',
+      'United States of America': 'US',
+      'USA': 'US',
+      'Canada': 'CA',
+      'United Kingdom': 'GB',
+      'UK': 'GB',
+      'Great Britain': 'GB',
+    };
+  
+    return countryCodeMap[countryPart] || 'US';
+  };
+
   const addLocation = async (e) => {
     e.preventDefault();
     if (!newLocation.trim() || !user?.username) return;
@@ -212,23 +229,6 @@ const Dashboard = () => {
       console.error('Error adding location:', err);
       setError(err.response?.data?.message || 'Failed to add location');
     }
-  };
-  
-  const getCountryCode = (displayName) => {
-    const parts = displayName.split(',');
-    const countryPart = parts[parts.length - 1].trim();
-    
-    const countryCodeMap = {
-      'United States': 'US',
-      'United States of America': 'US',
-      'USA': 'US',
-      'Canada': 'CA',
-      'United Kingdom': 'GB',
-      'UK': 'GB',
-      'Great Britain': 'GB',
-    };
-  
-    return countryCodeMap[countryPart] || 'US';
   };
 
   const DebugPanel = () => {
@@ -328,5 +328,3 @@ const Dashboard = () => {
     </Container>
   );
 };
-
-export default Dashboard;
