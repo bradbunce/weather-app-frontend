@@ -9,6 +9,7 @@ import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from "axios";
 import { useLogger } from "../utils/logger";
 import { createLDContexts } from "../config/launchDarkly";
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = "authToken";
@@ -327,7 +328,7 @@ const AuthProviderComponent = ({ children, flags, ldClient }) => {
 
   if (isLoading) {
     logger.trace("Rendering loading state");
-    return <div>Loading...</div>;
+    return <LoadingSpinner />;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

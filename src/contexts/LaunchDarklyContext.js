@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { asyncWithLDProvider } from "launchdarkly-react-client-sdk";
 import { createLDContexts } from "../config/launchDarkly";
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 const LDContext = createContext();
 
@@ -28,7 +29,7 @@ export const LDProvider = ({ children }) => {
   }, []);
 
   if (!LDClient) {
-    return <div>Loading...</div>;
+    return <LoadingSpinner />;
   }
 
   return (
