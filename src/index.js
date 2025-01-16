@@ -1,28 +1,15 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-
-// Import providers
-import { AuthProvider } from "./contexts/AuthContext";
-import { LDProvider } from "./contexts/LaunchDarklyContext";
-
-// Import main App component
 import { App } from "./App";
 
 const container = document.getElementById("root");
-const root = createRoot(container);
-const isProduction = process.env.REACT_APP_ENVIRONMENT === "production";
+if (!container) {
+  throw new Error("Failed to find the root element");
+}
 
-const AppContent = (
-  <BrowserRouter>
-    <LDProvider>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </LDProvider>
-  </BrowserRouter>
-);
+const root = createRoot(container);
+const isDevelopment = process.env.REACT_APP_ENVIRONMENT === "development";
 
 root.render(
-  isProduction ? AppContent : <React.StrictMode>{AppContent}</React.StrictMode>
+  isDevelopment ? <React.StrictMode><App /></React.StrictMode> : <App />
 );
