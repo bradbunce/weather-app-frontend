@@ -19,50 +19,45 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-const AppInitializer = ({ ldReady, authReady, children }) => {
-  const isLoading = !ldReady || !authReady;
-
-  if (isLoading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center min-vh-100">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  return children;
-};
-
 export const App = () => {
   const [ldReady, setLdReady] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const isLoading = !ldReady || !authReady;
+
+  const AppContent = () => {
+    if (isLoading) {
+      return <LoadingSpinner />;
+    }
+
+    return (
+      <div className="d-flex flex-column min-vh-100">
+        <NavigationBar />
+        <Container className="py-4 flex-grow-1">
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            {/* Protected Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        </Container>
+      </div>
+    );
+  };
 
   return (
     <LDProvider onReady={() => setLdReady(true)}>
       <BrowserRouter>
         <AuthProvider onReady={() => setAuthReady(true)}>
-          <AppInitializer ldReady={ldReady} authReady={authReady}>
-            <div className="d-flex flex-column min-vh-100">
-              <NavigationBar />
-              <Container className="py-4 flex-grow-1">
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Home />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  {/* Protected Routes */}
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <PrivateRoute>
-                        <Dashboard />
-                      </PrivateRoute>
-                    }
-                  />
-                </Routes>
-              </Container>
-            </div>
-          </AppInitializer>
+          <AppContent />
         </AuthProvider>
       </BrowserRouter>
     </LDProvider>
