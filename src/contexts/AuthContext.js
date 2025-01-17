@@ -389,39 +389,45 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   const confirmPasswordReset = async (resetToken, newPassword) => {
     logger.info("Attempting to confirm password reset");
     try {
-      const response = await axios.post(
-        `${AUTH_API_URL}/reset-password-confirm`,
-        { 
-          resetToken,
-          newPassword
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
+        const response = await axios.post(
+            `${AUTH_API_URL}/reset-password-confirm`,
+            { 
+                resetToken,
+                newPassword
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        if (response.data.error) {
+            throw new Error(response.data.error);
         }
-      );
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
-
-      logger.info("Password reset confirmed successfully");
-      return true;
+        logger.info("Password reset confirmed successfully");
+        return true;
     } catch (error) {
-      logger.error("Password reset confirmation failed", {
-        error: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
+        logger.error("Password reset confirmation failed", {
+            error: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+        });
 
-      throw new Error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to reset password. Please try again."
-      );
+        // Map specific error messages to user-friendly ones
+        if (error.response?.data?.error === "Invalid or expired reset token") {
+            throw new Error("This reset link has expired or already been used. Please request a new password reset.");
+        }
+
+        throw new Error(
+            error.response?.data?.message ||
+            error.response?.data?.error ||
+            error.message ||
+            "Failed to reset password. Please try again."
+        );
     }
-  };
+};
 
   const value = {
     user,
