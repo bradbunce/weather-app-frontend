@@ -11,6 +11,7 @@ import {
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { LoadingSpinner } from "./LoadingSpinner";
 
 export const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -32,12 +33,19 @@ export const Login = () => {
     try {
       setError("");
       setLoading(true);
-      await login(credentials);
-      navigate("/dashboard");
+      
+      // Wait for login to complete
+      const success = await login(credentials);
+      
+      if (success) {
+        // Add a small delay to ensure auth state is updated
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 100);
+      }
     } catch (err) {
       console.error("Login error:", err);
       setError(err.response?.data?.error || err.message || "Failed to log in");
-    } finally {
       setLoading(false);
     }
   };
@@ -70,6 +78,14 @@ export const Login = () => {
     setResetSuccess("");
     setResetEmail("");
   };
+
+  if (loading) {
+    return (
+      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
+        <LoadingSpinner />
+      </Container>
+    );
+  }
 
   return (
     <Container>
