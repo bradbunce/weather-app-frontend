@@ -38,8 +38,8 @@ export const PasswordResetConfirm = () => {
       }
 
       try {
-        // Call your API to validate the token
-        const response = await axios.post(`${AUTH_API_URL}/validate-reset-token`, {
+        // Just await the request, don't store response
+        await axios.post(`${AUTH_API_URL}/validate-reset-token`, {
           resetToken
         });
         
