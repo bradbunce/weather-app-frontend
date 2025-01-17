@@ -32,59 +32,76 @@ export const PasswordResetConfirm = () => {
   }, [resetToken, navigate]);
 
   const getErrorMessage = (err) => {
-    if (err.response) {
-      // Handle specific HTTP status codes
-      switch (err.response.status) {
-        case 400:
-          if (err.response.data?.error?.includes("Invalid or expired")) {
+    // First check if it's an axios error with response
+    if (err.response?.data?.error) {
+        // If we have a specific error message from the server, use it
+        if (err.response.data.error.includes("Invalid or expired")) {
             return "This password reset link has expired or has already been used. Please request a new one.";
-          }
-          return "There was a problem with your password reset request. Please try again.";
-        case 404:
-          return "The password reset link is no longer valid. Please request a new one.";
-        case 500:
-          return "We're experiencing technical difficulties. Please try again later.";
-        default:
-          return "An error occurred while resetting your password. Please try again.";
-      }
+        }
+        return err.response.data.error;
     }
-    return "Unable to connect to the server. Please check your internet connection.";
-  };
+    
+    // If we have a response status but no specific message
+    if (err.response?.status) {
+        switch (err.response.status) {
+            case 400:
+                return "This password reset link is no longer valid. Please request a new one.";
+            case 404:
+                return "The password reset link cannot be found. Please request a new one.";
+            case 500:
+                return "We're experiencing technical difficulties. Please try again later.";
+            default:
+                return "An error occurred while resetting your password. Please try again.";
+        }
+    }
+
+    // If the error has a message property
+    if (err.message) {
+        if (err.message.includes("Network Error")) {
+            return "Unable to connect to the server. Please check your internet connection.";
+        }
+        return err.message;
+    }
+
+    // Default fallback error
+    return "An unexpected error occurred. Please try again.";
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate passwords match
     if (newPassword !== confirmPassword) {
-      setError("The passwords you entered don't match. Please try again.");
-      return;
+        setError("The passwords you entered don't match. Please try again.");
+        return;
     }
 
     // Password strength validation
     if (newPassword.length < 8) {
-      setError("Your password must be at least 8 characters long.");
-      return;
+        setError("Your password must be at least 8 characters long.");
+        return;
     }
 
     try {
-      setError("");
-      setSuccess("");
-      setLoading(true);
+        setError("");
+        setSuccess("");
+        setLoading(true);
 
-      await confirmPasswordReset(resetToken, newPassword);
-      
-      setSuccess("Your password has been successfully reset! You'll be redirected to the login page in a few seconds.");
-      
-      // Redirect to login after successful password reset
-      setTimeout(() => {
-        navigate("/login");
-      }, 3000);
+        await confirmPasswordReset(resetToken, newPassword);
+        
+        setSuccess("Your password has been successfully reset! You'll be redirected to the login page in a few seconds.");
+        
+        // Redirect to login after successful password reset
+        setTimeout(() => {
+            navigate("/login");
+        }, 3000);
     } catch (err) {
-      setError(getErrorMessage(err));
+        console.error("Password reset error:", err);
+        setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   if (!resetToken) {
     return (
