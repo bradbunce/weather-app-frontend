@@ -3,7 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Card, Form, Button, Alert, Container } from "react-bootstrap";
 
 export default function Profile() {
-  const { currentUser } = useAuth();
+  const { user, updatePassword } = useAuth();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -27,28 +27,9 @@ export default function Profile() {
       setError("");
       setLoading(true);
 
-      // Use the token we already have in currentUser
-      const token = currentUser.tokenStart;
-
-      const response = await fetch(`${process.env.REACT_APP_AUTH_API}/update-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword: currentPasswordRef.current.value,
-          newPassword: newPasswordRef.current.value
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update password');
-      }
-
-      setMessage(data.message || "Password updated successfully");
+      await updatePassword(newPasswordRef.current.value);
+      
+      setMessage("Password updated successfully");
       currentPasswordRef.current.value = "";
       newPasswordRef.current.value = "";
       passwordConfirmRef.current.value = "";
@@ -65,9 +46,9 @@ export default function Profile() {
         <Card>
           <Card.Body>
             <h2 className="text-center mb-4">Update Password</h2>
-            {currentUser && currentUser.tokenPayload && (
+            {user && (
               <p className="text-center text-muted mb-4">
-                Logged in as: {currentUser.tokenPayload.username}
+                Logged in as: {user.username}
               </p>
             )}
             
