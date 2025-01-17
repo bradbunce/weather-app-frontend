@@ -352,6 +352,40 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     }
   };
 
+  const resetPassword = async (email) => {
+    logger.info("Attempting password reset", { email });
+    try {
+      const response = await axios.post(
+        `${AUTH_API_URL}/reset-password`,
+        { email },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      logger.info("Password reset link sent successfully");
+      return true;
+    } catch (error) {
+      logger.error("Password reset failed", {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
+      throw new Error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to send password reset link. Please try again."
+      );
+    }
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -360,6 +394,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     logout,
     refreshToken,
     updatePassword,
+    resetPassword
   };
 
   if (isLoading) {

@@ -7,6 +7,7 @@ import {
   Container,
   Row,
   Col,
+  Modal,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,8 +19,13 @@ export const Login = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetSuccess, setResetSuccess] = useState("");
+
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, resetPassword } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,6 +48,27 @@ export const Login = () => {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handlePasswordResetSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setResetError("");
+      setResetSuccess("");
+      await resetPassword(resetEmail);
+      setResetSuccess("Password reset link sent to your email");
+      setResetEmail("");
+    } catch (err) {
+      console.error("Password reset error:", err);
+      setResetError(err.response?.data?.error || err.message || "Failed to send reset link");
+    }
+  };
+
+  const handleCloseResetModal = () => {
+    setShowResetModal(false);
+    setResetError("");
+    setResetSuccess("");
+    setResetEmail("");
   };
 
   return (
@@ -73,14 +100,60 @@ export const Login = () => {
                     required
                   />
                 </Form.Group>
-                <Button className="w-100" type="submit" disabled={loading}>
+                <Button 
+                  className="w-100 mb-3" 
+                  type="submit" 
+                  disabled={loading}
+                >
                   {loading ? "Logging in..." : "Login"}
                 </Button>
+                <div className="text-center">
+                  <Button 
+                    variant="link" 
+                    onClick={() => setShowResetModal(true)}
+                  >
+                    Forgot Password?
+                  </Button>
+                </div>
               </Form>
             </Card.Body>
           </Card>
         </Col>
       </Row>
+
+      {/* Password Reset Modal */}
+      <Modal show={showResetModal} onHide={handleCloseResetModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>Reset Password</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {resetSuccess && (
+            <Alert variant="success">{resetSuccess}</Alert>
+          )}
+          {resetError && (
+            <Alert variant="danger">{resetError}</Alert>
+          )}
+          <Form onSubmit={handlePasswordResetSubmit}>
+            <Form.Group className="mb-3" controlId="resetEmail">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+              />
+            </Form.Group>
+            <Button 
+              type="submit" 
+              className="w-100"
+              disabled={loading}
+            >
+              Send Reset Link
+            </Button>
+          </Form>
+        </Modal.Body>
+      </Modal>
     </Container>
   );
 };
