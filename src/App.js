@@ -20,8 +20,6 @@ import { LDProvider } from "./contexts/LaunchDarklyContext";
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
-  // Always show loading spinner during authentication check
-  // This prevents the flash of the login screen
   if (isLoading || isAuthenticated === null) {
     return <LoadingSpinner />;
   }
@@ -29,43 +27,45 @@ const PrivateRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-const AppRoutes = () => {
-  const { isLoading } = useAuth();
-
-  // Show loading spinner for initial auth check
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
+const AppContent = ({ ldReady, authReady }) => {
+  const { isLoading: authLoading } = useAuth();
+  const showSpinner = !ldReady || !authReady || authLoading;
 
   return (
     <div className="d-flex flex-column min-vh-100">
       <NavigationBar />
       <Container className="py-4 flex-grow-1">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/reset-password" element={<PasswordResetConfirm />} />
-          
-          {/* Protected Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <PrivateRoute>
-                <Profile />
-              </PrivateRoute>
-            }
-          />
-        </Routes>
+        {showSpinner ? (
+          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+            <LoadingSpinner />
+          </div>
+        ) : (
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/reset-password" element={<PasswordResetConfirm />} />
+            
+            {/* Protected Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <Profile />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        )}
       </Container>
     </div>
   );
@@ -74,17 +74,20 @@ const AppRoutes = () => {
 export const App = () => {
   const [ldReady, setLdReady] = useState(false);
   const [authReady, setAuthReady] = useState(false);
-  const isLoading = !ldReady || !authReady;
 
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
+  console.log('Initialization Status:', { ldReady, authReady });
 
   return (
-    <LDProvider onReady={() => setLdReady(true)}>
+    <LDProvider onReady={() => {
+      console.log('LaunchDarkly Ready');
+      setLdReady(true);
+    }}>
       <BrowserRouter>
-        <AuthProvider onReady={() => setAuthReady(true)}>
-          <AppRoutes />
+        <AuthProvider onReady={() => {
+          console.log('Auth Provider Ready');
+          setAuthReady(true);
+        }}>
+          <AppContent ldReady={ldReady} authReady={authReady} />
         </AuthProvider>
       </BrowserRouter>
     </LDProvider>
