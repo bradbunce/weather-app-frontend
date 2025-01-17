@@ -356,7 +356,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     logger.info("Attempting password reset", { email });
     try {
       const response = await axios.post(
-        `${AUTH_API_URL}/reset-password`,
+        `${AUTH_API_URL}/reset-password-request`,
         { email },
         {
           headers: {
@@ -386,6 +386,43 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     }
   };
 
+  const confirmPasswordReset = async (resetToken, newPassword) => {
+    logger.info("Attempting to confirm password reset");
+    try {
+      const response = await axios.post(
+        `${AUTH_API_URL}/reset-password-confirm`,
+        { 
+          resetToken,
+          newPassword
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      logger.info("Password reset confirmed successfully");
+      return true;
+    } catch (error) {
+      logger.error("Password reset confirmation failed", {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
+      throw new Error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to reset password. Please try again."
+      );
+    }
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -394,7 +431,8 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     logout,
     refreshToken,
     updatePassword,
-    resetPassword
+    resetPassword,
+    confirmPasswordReset,
   };
 
   if (isLoading) {
