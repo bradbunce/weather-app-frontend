@@ -317,23 +317,26 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     }
   };
 
-  const updatePassword = async (newPassword) => {
+  const updatePassword = async (currentPassword, newPassword) => {
     logger.info("Attempting to update password");
     try {
       const response = await axios.post(
         `${AUTH_API_URL}/update-password`,
-        { password: newPassword },
+        { 
+          currentPassword,
+          newPassword
+        },
         {
           headers: {
             Authorization: formatTokenForApi(user.token, true),
           },
         }
       );
-
+  
       if (response.data.error) {
         throw new Error(response.data.error);
       }
-
+  
       logger.info("Password updated successfully");
       return true;
     } catch (error) {
