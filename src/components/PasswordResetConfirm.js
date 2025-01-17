@@ -10,106 +10,115 @@ import {
 } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import axios from 'axios';
+
+const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 
 export const PasswordResetConfirm = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true
+  const [tokenValid, setTokenValid] = useState(false);
   const [searchParams] = useSearchParams();
   const resetToken = searchParams.get('token');
   const navigate = useNavigate();
   const { confirmPasswordReset } = useAuth();
 
   useEffect(() => {
-    if (!resetToken) {
-      setError("The password reset link is invalid. Please request a new password reset link.");
-      setTimeout(() => {
-        navigate("/login");
-      }, 5000);
-    }
+    const validateToken = async () => {
+      if (!resetToken) {
+        setError("The password reset link is invalid. Please request a new password reset link.");
+        setLoading(false);
+        setTimeout(() => {
+          navigate("/login");
+        }, 3000);
+        return;
+      }
+
+      try {
+        // Call your API to validate the token
+        const response = await axios.post(`${AUTH_API_URL}/validate-reset-token`, {
+          resetToken
+        });
+        
+        setTokenValid(true);
+        setLoading(false);
+      } catch (err) {
+        setError(
+          err.response?.data?.error === "Invalid or expired reset token"
+            ? "This reset link has expired or already been used. Please request a new password reset."
+            : "This password reset link is no longer valid. Please request a new one."
+        );
+        setLoading(false);
+        setTimeout(() => {
+          navigate("/login");
+        }, 3000);
+      }
+    };
+
+    validateToken();
   }, [resetToken, navigate]);
-
-  const getErrorMessage = (err) => {
-    // First check if it's an axios error with response
-    if (err.response?.data?.error) {
-        // If we have a specific error message from the server, use it
-        if (err.response.data.error.includes("Invalid or expired")) {
-            return "This password reset link has expired or has already been used. Please request a new one.";
-        }
-        return err.response.data.error;
-    }
-    
-    // If we have a response status but no specific message
-    if (err.response?.status) {
-        switch (err.response.status) {
-            case 400:
-                return "This password reset link is no longer valid. Please request a new one.";
-            case 404:
-                return "The password reset link cannot be found. Please request a new one.";
-            case 500:
-                return "We're experiencing technical difficulties. Please try again later.";
-            default:
-                return "An error occurred while resetting your password. Please try again.";
-        }
-    }
-
-    // If the error has a message property
-    if (err.message) {
-        if (err.message.includes("Network Error")) {
-            return "Unable to connect to the server. Please check your internet connection.";
-        }
-        return err.message;
-    }
-
-    // Default fallback error
-    return "An unexpected error occurred. Please try again.";
-};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate passwords match
     if (newPassword !== confirmPassword) {
-        setError("The passwords you entered don't match. Please try again.");
-        return;
+      setError("The passwords you entered don't match. Please try again.");
+      return;
     }
 
-    // Password strength validation
     if (newPassword.length < 8) {
-        setError("Your password must be at least 8 characters long.");
-        return;
+      setError("Your password must be at least 8 characters long.");
+      return;
     }
 
     try {
-        setError("");
-        setSuccess("");
-        setLoading(true);
+      setError("");
+      setSuccess("");
+      setLoading(true);
 
-        await confirmPasswordReset(resetToken, newPassword);
-        
-        setSuccess("Your password has been successfully reset! You'll be redirected to the login page in a few seconds.");
-        
-        // Redirect to login after successful password reset
-        setTimeout(() => {
-            navigate("/login");
-        }, 3000);
+      await confirmPasswordReset(resetToken, newPassword);
+      
+      setSuccess("Your password has been successfully reset! You'll be redirected to the login page.");
+      setTimeout(() => {
+        navigate("/login");
+      }, 3000);
     } catch (err) {
-        console.error("Password reset error:", err);
-        setError(getErrorMessage(err));
+      setError(err.message);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
-  if (!resetToken) {
+  // Show loading state
+  if (loading) {
+    return (
+      <Container>
+        <Row className="justify-content-md-center mt-5">
+          <Col md={6} className="text-center">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="mt-3">Validating your reset link...</p>
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
+
+  // Show error state if token is invalid
+  if (!tokenValid) {
     return (
       <Container>
         <Row className="justify-content-md-center mt-5">
           <Col md={6}>
             <Alert variant="warning">
-              Invalid password reset link. Redirecting you to the login page...
+              {error}
+              <div className="mt-2">
+                <small>Redirecting you to the login page...</small>
+              </div>
             </Alert>
           </Col>
         </Row>
@@ -117,6 +126,7 @@ export const PasswordResetConfirm = () => {
     );
   }
 
+  // Show password reset form only if token is valid
   return (
     <Container>
       <Row className="justify-content-md-center">
