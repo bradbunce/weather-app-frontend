@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-// UI Components and Styling
 import { Container } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
+
 // Application Components
 import { NavigationBar } from "./components/NavigationBar";
 import { Home } from "./components/Home";
@@ -11,7 +11,8 @@ import { Register } from "./components/Register";
 import { Dashboard } from "./components/Dashboard";
 import Profile from "./components/Profile";
 import { LoadingSpinner } from "./components/LoadingSpinner";
-import { PasswordResetConfirm } from "./components/PasswordResetConfirm"; // Add this import
+import { PasswordResetConfirm } from "./components/PasswordResetConfirm";
+
 // Context Providers
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LDProvider } from "./contexts/LaunchDarklyContext";
@@ -19,12 +20,55 @@ import { LDProvider } from "./contexts/LaunchDarklyContext";
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
-  // Show loading spinner while checking auth state
-  if (isLoading) {
+  // Always show loading spinner during authentication check
+  // This prevents the flash of the login screen
+  if (isLoading || isAuthenticated === null) {
     return <LoadingSpinner />;
   }
   
   return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
+
+const AppRoutes = () => {
+  const { isLoading } = useAuth();
+
+  // Show loading spinner for initial auth check
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <div className="d-flex flex-column min-vh-100">
+      <NavigationBar />
+      <Container className="py-4 flex-grow-1">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/reset-password" element={<PasswordResetConfirm />} />
+          
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Profile />
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+      </Container>
+    </div>
+  );
 };
 
 export const App = () => {
@@ -32,53 +76,15 @@ export const App = () => {
   const [authReady, setAuthReady] = useState(false);
   const isLoading = !ldReady || !authReady;
 
-  const AppContent = () => {
-    if (isLoading) {
-      return <LoadingSpinner />;
-    }
-
-    return (
-      <div className="d-flex flex-column min-vh-100">
-        <NavigationBar />
-        <Container className="py-4 flex-grow-1">
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route
-              path="/reset-password"
-              element={<PasswordResetConfirm />}
-            />{" "}
-            {/* Add this route */}
-            {/* Protected Routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <PrivateRoute>
-                  <Profile />
-                </PrivateRoute>
-              }
-            />
-          </Routes>
-        </Container>
-      </div>
-    );
-  };
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <LDProvider onReady={() => setLdReady(true)}>
       <BrowserRouter>
         <AuthProvider onReady={() => setAuthReady(true)}>
-          <AppContent />
+          <AppRoutes />
         </AuthProvider>
       </BrowserRouter>
     </LDProvider>
