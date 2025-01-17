@@ -35,17 +35,15 @@ export const Login = () => {
       setLoading(true);
       
       // Wait for login to complete
-      const success = await login(credentials);
+      await login(credentials);
       
-      if (success) {
-        // Add a small delay to ensure auth state is updated
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 100);
-      }
+      // Navigate to dashboard after successful login
+      navigate("/dashboard", { replace: true });  // Using replace to avoid back-button issues
+      
     } catch (err) {
       console.error("Login error:", err);
       setError(err.response?.data?.error || err.message || "Failed to log in");
+    } finally {
       setLoading(false);
     }
   };

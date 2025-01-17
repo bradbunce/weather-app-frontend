@@ -18,10 +18,13 @@ import { LDProvider } from "./contexts/LaunchDarklyContext";
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
+  
+  // Show loading spinner while checking auth state
   if (isLoading) {
     return <LoadingSpinner />;
   }
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 export const App = () => {
