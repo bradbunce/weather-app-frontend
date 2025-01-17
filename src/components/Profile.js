@@ -27,14 +27,14 @@ export default function Profile() {
       setError("");
       setLoading(true);
 
-      // Get the current user's ID token for authentication
-      const idToken = await currentUser.getIdToken();
+      // Use the token we already have in currentUser
+      const token = currentUser.tokenStart;
 
       const response = await fetch(`${process.env.REACT_APP_AUTH_API}/update-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           currentPassword: currentPasswordRef.current.value,
@@ -65,9 +65,11 @@ export default function Profile() {
         <Card>
           <Card.Body>
             <h2 className="text-center mb-4">Update Password</h2>
-            <p className="text-center text-muted mb-4">
-              Logged in as: {currentUser.email}
-            </p>
+            {currentUser && currentUser.tokenPayload && (
+              <p className="text-center text-muted mb-4">
+                Logged in as: {currentUser.tokenPayload.username}
+              </p>
+            )}
             
             {error && <Alert variant="danger">{error}</Alert>}
             {message && <Alert variant="success">{message}</Alert>}
