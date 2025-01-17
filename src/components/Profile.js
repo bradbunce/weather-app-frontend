@@ -27,7 +27,10 @@ export default function Profile() {
       setError("");
       setLoading(true);
 
-      await updatePassword(currentPasswordRef.current.value, newPasswordRef.current.value);
+      await updatePassword(
+        currentPasswordRef.current.value,
+        newPasswordRef.current.value
+      );
       
       setMessage("Password updated successfully");
       currentPasswordRef.current.value = "";
