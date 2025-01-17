@@ -1,105 +1,142 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
+import {
+  Form,
+  Button,
+  Card,
+  Alert,
+  Container,
+  Row,
+  Col,
+} from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Card, Form, Button, Alert, Container } from "react-bootstrap";
 
-export default function Profile() {
-  const { user, updatePassword } = useAuth();
+const Profile = () => {
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const currentPasswordRef = useRef();
-  const newPasswordRef = useRef();
-  const passwordConfirmRef = useRef();
+  const [loading, setLoading] = useState(false);
+  const [passwords, setPasswords] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const { updatePassword } = useAuth();
+  const navigate = useNavigate();
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (newPasswordRef.current.value !== passwordConfirmRef.current.value) {
-      return setError("New passwords do not match");
-    }
-    
-    if (newPasswordRef.current.value.length < 6) {
-      return setError("New password must be at least 6 characters");
+
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      return setError("Passwords do not match");
     }
 
     try {
-      setMessage("");
       setError("");
+      setMessage("");
       setLoading(true);
-
-      await updatePassword(
-        currentPasswordRef.current.value,
-        newPasswordRef.current.value
-      );
       
-      setMessage("Password updated successfully");
-      currentPasswordRef.current.value = "";
-      newPasswordRef.current.value = "";
-      passwordConfirmRef.current.value = "";
-    } catch (error) {
-      setError(error.message);
+      await updatePassword(passwords.currentPassword, passwords.newPassword);
+      
+      setMessage("Password updated successfully!");
+      
+      // Clear form
+      setPasswords({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      // Redirect to dashboard after showing success message
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 2000);
+
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setPasswords(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   return (
-    <Container className="d-flex align-items-center justify-content-center" style={{ minHeight: "80vh" }}>
-      <div className="w-100" style={{ maxWidth: "400px" }}>
-        <Card>
-          <Card.Body>
-            <h2 className="text-center mb-4">Update Password</h2>
-            {user && (
-              <p className="text-center text-muted mb-4">
-                Logged in as: {user.username}
-              </p>
-            )}
-            
-            {error && <Alert variant="danger">{error}</Alert>}
-            {message && <Alert variant="success">{message}</Alert>}
-            
-            <Form onSubmit={handleSubmit}>
-              <Form.Group id="current-password" className="mb-3">
-                <Form.Label>Current Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  ref={currentPasswordRef}
-                  required
-                  placeholder="Enter current password"
-                />
-              </Form.Group>
+    <Container>
+      <Row className="justify-content-md-center">
+        <Col md={6}>
+          <Card>
+            <Card.Body>
+              <h2 className="text-center mb-4">Update Password</h2>
+              {error && (
+                <Alert variant="danger" dismissible onClose={() => setError("")}>
+                  {error}
+                </Alert>
+              )}
+              {message && (
+                <Alert variant="success">
+                  {message}
+                  <div className="mt-2">
+                    <small>Redirecting to dashboard...</small>
+                  </div>
+                </Alert>
+              )}
+              <Form onSubmit={handleSubmit}>
+                <Form.Group className="mb-3" controlId="currentPassword">
+                  <Form.Label>Current Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    name="currentPassword"
+                    value={passwords.currentPassword}
+                    onChange={handleChange}
+                    required
+                    placeholder="Enter current password"
+                  />
+                </Form.Group>
 
-              <Form.Group id="new-password" className="mb-3">
-                <Form.Label>New Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  ref={newPasswordRef}
-                  required
-                  placeholder="Enter new password"
-                />
-              </Form.Group>
-              
-              <Form.Group id="password-confirm" className="mb-3">
-                <Form.Label>Confirm New Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  ref={passwordConfirmRef}
-                  required
-                  placeholder="Confirm new password"
-                />
-              </Form.Group>
-              
-              <Button 
-                disabled={loading}
-                className="w-100" 
-                type="submit"
-              >
-                Update Password
-              </Button>
-            </Form>
-          </Card.Body>
-        </Card>
-      </div>
+                <Form.Group className="mb-3" controlId="newPassword">
+                  <Form.Label>New Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    name="newPassword"
+                    value={passwords.newPassword}
+                    onChange={handleChange}
+                    required
+                    placeholder="Enter new password"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3" controlId="confirmPassword">
+                  <Form.Label>Confirm New Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    name="confirmPassword"
+                    value={passwords.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    placeholder="Confirm new password"
+                  />
+                </Form.Group>
+
+                <Button
+                  type="submit"
+                  className="w-100"
+                  disabled={loading || message}
+                >
+                  {loading ? "Updating Password..." : "Update Password"}
+                </Button>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
     </Container>
   );
-}
+};
+
+export default Profile;
