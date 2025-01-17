@@ -1,26 +1,25 @@
 import React, { useState, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { Card, CardBody } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Card, Form, Button, Alert, Container } from "react-bootstrap";
 
 export default function Profile() {
   const { currentUser } = useAuth();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const passwordRef = useRef();
+  const currentPasswordRef = useRef();
+  const newPasswordRef = useRef();
   const passwordConfirmRef = useRef();
 
   async function handleSubmit(e) {
     e.preventDefault();
     
-    if (passwordRef.current.value !== passwordConfirmRef.current.value) {
-      return setError("Passwords do not match");
+    if (newPasswordRef.current.value !== passwordConfirmRef.current.value) {
+      return setError("New passwords do not match");
     }
     
-    if (passwordRef.current.value.length < 6) {
-      return setError("Password must be at least 6 characters");
+    if (newPasswordRef.current.value.length < 6) {
+      return setError("New password must be at least 6 characters");
     }
 
     try {
@@ -31,95 +30,90 @@ export default function Profile() {
       // Get the current user's ID token for authentication
       const idToken = await currentUser.getIdToken();
 
-      const response = await fetch(`${process.env.REACT_APP_AUTH_API}/reset-password`, {
+      const response = await fetch(`${process.env.REACT_APP_AUTH_API}/update-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          userId: currentUser.uid,
-          newPassword: passwordRef.current.value
+          currentPassword: currentPasswordRef.current.value,
+          newPassword: newPasswordRef.current.value
         })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to reset password');
+        throw new Error(data.error || 'Failed to update password');
       }
 
-      setMessage("Password updated successfully");
-      passwordRef.current.value = "";
+      setMessage(data.message || "Password updated successfully");
+      currentPasswordRef.current.value = "";
+      newPasswordRef.current.value = "";
       passwordConfirmRef.current.value = "";
     } catch (error) {
-      setError("Failed to update password: " + error.message);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-md p-4">
+    <Container className="d-flex align-items-center justify-content-center" style={{ minHeight: "80vh" }}>
+      <div className="w-100" style={{ maxWidth: "400px" }}>
         <Card>
-          <CardBody>
-            <h2 className="text-2xl font-bold text-center mb-4">Update Password</h2>
-            <p className="text-sm text-gray-600 text-center mb-4">
+          <Card.Body>
+            <h2 className="text-center mb-4">Update Password</h2>
+            <p className="text-center text-muted mb-4">
               Logged in as: {currentUser.email}
             </p>
             
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <Alert variant="danger">{error}</Alert>}
+            {message && <Alert variant="success">{message}</Alert>}
             
-            {message && (
-              <Alert className="mb-4">
-                <AlertDescription>{message}</AlertDescription>
-              </Alert>
-            )}
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-1">
-                  New Password
-                </label>
-                <input
-                  id="password"
+            <Form onSubmit={handleSubmit}>
+              <Form.Group id="current-password" className="mb-3">
+                <Form.Label>Current Password</Form.Label>
+                <Form.Control
                   type="password"
-                  ref={passwordRef}
+                  ref={currentPasswordRef}
+                  required
+                  placeholder="Enter current password"
+                />
+              </Form.Group>
+
+              <Form.Group id="new-password" className="mb-3">
+                <Form.Label>New Password</Form.Label>
+                <Form.Control
+                  type="password"
+                  ref={newPasswordRef}
                   required
                   placeholder="Enter new password"
-                  className="w-full p-2 border rounded-md"
                 />
-              </div>
+              </Form.Group>
               
-              <div>
-                <label htmlFor="password-confirm" className="block text-sm font-medium mb-1">
-                  Confirm New Password
-                </label>
-                <input
-                  id="password-confirm"
+              <Form.Group id="password-confirm" className="mb-3">
+                <Form.Label>Confirm New Password</Form.Label>
+                <Form.Control
                   type="password"
                   ref={passwordConfirmRef}
                   required
                   placeholder="Confirm new password"
-                  className="w-full p-2 border rounded-md"
                 />
-              </div>
+              </Form.Group>
               
               <Button 
                 disabled={loading}
+                className="w-100" 
                 type="submit"
-                className="w-full"
               >
                 Update Password
               </Button>
-            </form>
-          </CardBody>
+            </Form>
+          </Card.Body>
         </Card>
       </div>
-    </div>
+    </Container>
   );
 }
