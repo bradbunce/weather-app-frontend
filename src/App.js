@@ -11,6 +11,7 @@ import { Register } from "./components/Register";
 import { Dashboard } from "./components/Dashboard";
 import Profile from "./components/Profile";
 import { LoadingSpinner } from "./components/LoadingSpinner";
+import { PasswordResetConfirm } from "./components/PasswordResetConfirm";  // Add this import
 // Context Providers
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LDProvider } from "./contexts/LaunchDarklyContext";
@@ -39,6 +40,8 @@ export const App = () => {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/reset-password" element={<PasswordResetConfirm />} />  {/* Add this route */}
+            
             {/* Protected Routes */}
             <Route
               path="/dashboard"
