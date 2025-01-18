@@ -22,17 +22,21 @@ const Profile = () => {
     username: "",
     email: "",
   });
+
   const { updatePassword, updateProfile, currentUser } = useAuth();
   const navigate = useNavigate();
 
-  // Load current user data
   useEffect(() => {
+    // Only update form data if currentUser exists and has necessary properties
     if (currentUser) {
+      console.log("Current user data:", currentUser); // Debug log
       setFormData(prev => ({
         ...prev,
         username: currentUser.username || "",
         email: currentUser.email || "",
       }));
+    } else {
+      console.log("No current user data available"); // Debug log
     }
   }, [currentUser]);
 
@@ -50,10 +54,12 @@ const Profile = () => {
     }
 
     // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (formData.email && !emailRegex.test(formData.email)) {
-      setError("Please enter a valid email address");
-      return false;
+    if (formData.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setError("Please enter a valid email address");
+        return false;
+      }
     }
 
     return true;
@@ -61,6 +67,7 @@ const Profile = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Form submission started", { formData }); // Debug log
 
     if (!validateForm()) {
       return;
@@ -76,16 +83,27 @@ const Profile = () => {
 
       // Handle password update
       if (formData.newPassword) {
+        console.log("Adding password update to queue"); // Debug log
         updatePromises.push(updatePassword(formData.currentPassword, formData.newPassword));
       }
 
       // Handle profile updates (username and email)
-      if (formData.username !== currentUser.username || formData.email !== currentUser.email) {
+      const currentUsername = currentUser?.username;
+      const currentEmail = currentUser?.email;
+      
+      if (formData.username !== currentUsername || formData.email !== currentEmail) {
+        console.log("Adding profile update to queue", { // Debug log
+          currentUsername,
+          newUsername: formData.username,
+          currentEmail,
+          newEmail: formData.email
+        });
+        
         updatePromises.push(
           updateProfile({
             username: formData.username,
             email: formData.email,
-            currentPassword: formData.currentPassword // Required for security
+            currentPassword: formData.currentPassword
           })
         );
       }
@@ -107,18 +125,13 @@ const Profile = () => {
         setTimeout(() => {
           navigate("/dashboard");
         }, 2000);
-      }
-    } catch (err) {
-      // Handle specific error types
-      if (err.code === 'USERNAME_EXISTS') {
-        setError("This username is already taken");
-      } else if (err.code === 'EMAIL_EXISTS') {
-        setError("This email address is already in use");
-      } else if (err.code === 'INVALID_PASSWORD') {
-        setError("Current password is incorrect");
       } else {
-        setError(err.message);
+        console.log("No changes detected to update"); // Debug log
+        setMessage("No changes were made to update");
       }
+    } catch (error) {
+      console.error("Profile update error:", error); // Debug log
+      setError(error.message || "An error occurred while updating your profile");
     } finally {
       setLoading(false);
     }
@@ -131,6 +144,21 @@ const Profile = () => {
       [name]: value
     }));
   };
+
+  if (!currentUser) {
+    console.log("Component rendered without user data"); // Debug log
+    return (
+      <Container>
+        <Row className="justify-content-md-center">
+          <Col md={6}>
+            <Alert variant="warning">
+              Loading user data...
+            </Alert>
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -193,7 +221,7 @@ const Profile = () => {
                 </Form.Group>
 
                 <Form.Group className="mb-3" controlId="newPassword">
-                  <Form.Label>New Password</Form.Label>
+                  <Form.Label>New Password (Optional)</Form.Label>
                   <Form.Control
                     type="password"
                     name="newPassword"

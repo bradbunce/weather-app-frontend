@@ -318,14 +318,30 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   };
 
   const updateProfile = async ({ username, email, currentPassword }) => {
-    logger.info("Attempting to update profile", { username, email });
+    if (!user) {
+      logger.error("Update profile failed: No user data available");
+      throw new Error("You must be logged in to update your profile");
+    }
+
+    if (!user.token) {
+      logger.error("Update profile failed: No authentication token available");
+      throw new Error("Authentication token is missing");
+    }
+
+    logger.info("Attempting to update profile", { 
+      username, 
+      email,
+      currentUserId: user.id,
+      currentUsername: user.username 
+    });
+
     try {
       const response = await axios.post(
         `${AUTH_API_URL}/update-profile`,
         {
           username,
           email,
-          currentPassword,
+          currentPassword
         },
         {
           headers: {
@@ -339,18 +355,18 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
       }
 
       // Update the user state with new information
-      setUser((prev) => ({
+      setUser(prev => ({
         ...prev,
         username: username || prev.username,
-        email: email || prev.email,
+        email: email || prev.email
       }));
 
       logger.info("Profile updated successfully", {
         userId: user.id,
         newUsername: username,
-        newEmail: email,
+        newEmail: email
       });
-
+      
       return true;
     } catch (error) {
       logger.error("Profile update failed", {
@@ -373,8 +389,8 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
 
       throw new Error(
         error.response?.data?.message ||
-          error.message ||
-          "Failed to update profile. Please try again."
+        error.message ||
+        "Failed to update profile. Please try again."
       );
     }
   };
@@ -503,7 +519,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     updatePassword,
     resetPassword,
     confirmPasswordReset,
-    updateProfile,
+    updateProfile, 
   };
 
   if (isLoading) {
