@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from "axios";
@@ -17,18 +18,33 @@ const AuthContext = createContext(null);
 
 const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   const logger = useLogger();
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [authState, setAuthState] = useState({
+    user: null,
+    isAuthenticated: false,
+    isInitialized: false,
+    isLoading: true
+  });
+  const initializeStarted = useRef(false);
 
   // Format token based on API needs - wrapped in useCallback
   const formatTokenForApi = useCallback((token, needsBearer = true) => {
     return needsBearer ? `Bearer ${token}` : token;
   }, []);
 
+  // Combined state update function to prevent multiple re-renders
+  const updateAuthState = useCallback((updates) => {
+    setAuthState(prev => ({
+      ...prev,
+      ...updates
+    }));
+  }, []);
+
   // Check for existing token on mount
   useEffect(() => {
     const initializeAuth = async () => {
+      if (initializeStarted.current) return;
+      initializeStarted.current = true;
+
       logger.info("Initializing authentication state");
       const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
       logger.debug("Stored token status:", { 
@@ -57,8 +73,14 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
           });
 
           logger.info("Token validation successful", { userId: userData.id });
-          setUser({ ...userData, token: storedToken });
-          setIsAuthenticated(true);
+          
+          updateAuthState({
+            user: { ...userData, token: storedToken },
+            isAuthenticated: true,
+            isInitialized: true,
+            isLoading: false
+          });
+
           axios.defaults.headers.common["Authorization"] = formatTokenForApi(
             storedToken,
             true
@@ -72,35 +94,48 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
           });
           localStorage.removeItem(TOKEN_STORAGE_KEY);
           delete axios.defaults.headers.common["Authorization"];
+          
+          updateAuthState({
+            user: null,
+            isAuthenticated: false,
+            isInitialized: true,
+            isLoading: false
+          });
         }
+      } else {
+        updateAuthState({
+          user: null,
+          isAuthenticated: false,
+          isInitialized: true,
+          isLoading: false
+        });
       }
 
-      setIsLoading(false);
-      onReady?.(); // Call onReady when auth initialization is complete
+      onReady?.();
       logger.debug("Auth initialization complete", {
-        isAuthenticated: Boolean(storedToken),
+        isAuthenticated: !!storedToken,
       });
     };
 
     initializeAuth();
-  }, [logger, formatTokenForApi, onReady]);
+  }, [logger, formatTokenForApi, onReady, updateAuthState]);
 
   // Update LaunchDarkly context when user changes
   useEffect(() => {
     const updateLDContext = async () => {
-      if (!ldClient) {
+      if (!ldClient || !authState.isInitialized) {
         logger.debug("LaunchDarkly client not yet initialized");
         return;
       }
 
-      const newContexts = createLDContexts(user);
+      const newContexts = createLDContexts(authState.user);
       const currentContext = await ldClient.getContext();
 
       // Only update if contexts are different
       if (JSON.stringify(currentContext) !== JSON.stringify(newContexts)) {
         logger.debug("Updating LaunchDarkly contexts", {
-          hasUser: !!user,
-          username: user?.username,
+          hasUser: !!authState.user,
+          username: authState.user?.username,
         });
 
         try {
@@ -116,12 +151,12 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     };
 
     updateLDContext();
-  }, [user, logger, ldClient]);
+  }, [authState.user, authState.isInitialized, logger, ldClient]);
 
   const login = async (credentials) => {
     logger.info("Attempting login", { username: credentials.username });
     try {
-      setIsLoading(true);
+      updateAuthState({ isLoading: true });
       const response = await axios.post(
         `${AUTH_API_URL}/login`,
         {
@@ -179,12 +214,16 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
       }
 
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      setUser({
-        ...userData,
-        token,
-        id: userId,
+      updateAuthState({
+        user: {
+          ...userData,
+          token,
+          id: userId,
+        },
+        isAuthenticated: true,
+        isLoading: false
       });
-      setIsAuthenticated(true);
+
       axios.defaults.headers.common["Authorization"] = formatTokenForApi(
         token,
         true
@@ -202,8 +241,12 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
         status: error.response?.status,
       });
 
-      setUser(null);
-      setIsAuthenticated(false);
+      updateAuthState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false
+      });
+
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       delete axios.defaults.headers.common["Authorization"];
 
@@ -212,8 +255,6 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
           error.message ||
           "Login failed. Please try again."
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -281,8 +322,11 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     } finally {
       window.dispatchEvent(new Event("auth-logout"));
 
-      setUser(null);
-      setIsAuthenticated(false);
+      updateAuthState({
+        user: null,
+        isAuthenticated: false
+      });
+      
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       delete axios.defaults.headers.common["Authorization"];
       logger.info("Logout complete");
@@ -315,7 +359,13 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
       }
 
       localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
-      setUser((prev) => ({ ...prev, token: newToken }));
+      updateAuthState({
+        user: {
+          ...authState.user,
+          token: newToken
+        }
+      });
+      
       axios.defaults.headers.common["Authorization"] = formatTokenForApi(
         newToken,
         true
@@ -333,12 +383,12 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   };
 
   const updateProfile = async ({ username, email, currentPassword }) => {
-    if (!user) {
+    if (!authState.user) {
       logger.error("Update profile failed: No user data available");
       throw new Error("You must be logged in to update your profile");
     }
 
-    if (!user.token) {
+    if (!authState.user.token) {
       logger.error("Update profile failed: No authentication token available");
       throw new Error("Authentication token is missing");
     }
@@ -346,8 +396,8 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     logger.info("Attempting to update profile", { 
       username, 
       email,
-      currentUserId: user.id,
-      currentUsername: user.username 
+      currentUserId: authState.user.id,
+      currentUsername: authState.user.username 
     });
 
     try {
@@ -360,7 +410,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
         },
         {
           headers: {
-            Authorization: formatTokenForApi(user.token, true),
+            Authorization: formatTokenForApi(authState.user.token, true),
           },
         }
       );
@@ -370,14 +420,16 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
       }
 
       // Update the user state with new information
-      setUser(prev => ({
-        ...prev,
-        username: username || prev.username,
-        email: email || prev.email
-      }));
+      updateAuthState({
+        user: {
+          ...authState.user,
+          username: username || authState.user.username,
+          email: email || authState.user.email
+        }
+      });
 
       logger.info("Profile updated successfully", {
-        userId: user.id,
+        userId: authState.user.id,
         newUsername: username,
         newEmail: email
       });
@@ -421,7 +473,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
         },
         {
           headers: {
-            Authorization: formatTokenForApi(user.token, true),
+            Authorization: formatTokenForApi(authState.user.token, true),
           },
         }
       );
@@ -525,31 +577,28 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   };
 
   const value = {
-    user,
-    currentUser: user, // Add currentUser alias
-    isAuthenticated,
-    isLoading,
+    user: authState.user,
+    currentUser: authState.user, // Add currentUser alias
+    isAuthenticated: authState.isAuthenticated,
+    isLoading: authState.isLoading,
+    isInitialized: authState.isInitialized,
     login,
     logout,
     refreshToken,
     updatePassword,
     resetPassword,
     confirmPasswordReset,
-    updateProfile, 
+    updateProfile,
   };
-
-  if (isLoading) {
-    logger.trace("Rendering loading state");
-    return null;
-  }
 
   // Debug log the current auth state
   logger.debug("Current auth state:", {
-    hasUser: !!user,
-    isAuthenticated,
-    isLoading,
-    username: user?.username,
-    email: user?.email
+    hasUser: !!authState.user,
+    isAuthenticated: authState.isAuthenticated,
+    isLoading: authState.isLoading,
+    isInitialized: authState.isInitialized,
+    username: authState.user?.username,
+    email: authState.user?.email
   });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
