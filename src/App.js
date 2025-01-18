@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Container } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -18,44 +18,33 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LDProvider } from "./contexts/LaunchDarklyContext";
 
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
-
-  // Only redirect if we're certain about the authentication state
-  if (isLoading) {
-    return <LoadingSpinner />;
+  const { isAuthenticated, isInitialized } = useAuth();
+  
+  // Don't show a spinner here anymore - let AppContent handle it
+  if (!isInitialized) {
+    return null;
   }
-
-  // We only redirect if we're certain the user is not authenticated
-  if (isAuthenticated === false) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
+  
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
-
-  // During loading, show nothing to prevent flicker
-  if (isLoading) {
-    return <LoadingSpinner />;
+  const { isAuthenticated, isInitialized } = useAuth();
+  
+  if (!isInitialized) {
+    return null;
   }
 
-  // Redirect authenticated users away from login/register pages
-  if (isAuthenticated) {
-    return <Navigate to={location.state?.from?.pathname || "/dashboard"} replace />;
-  }
-
-  return children;
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
 };
 
 const AppContent = ({ ldReady, authReady }) => {
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading, isInitialized } = useAuth();
   
-  // Show loading spinner only during initial load
-  if (!ldReady || !authReady || authLoading) {
+  // Single consolidated loading check
+  const isAppReady = ldReady && authReady && isInitialized && !isLoading;
+
+  if (!isAppReady) {
     return (
       <div className="d-flex flex-column min-vh-100">
         <NavigationBar />
@@ -92,7 +81,7 @@ const AppContent = ({ ldReady, authReady }) => {
             } 
           />
           <Route path="/reset-password" element={<PasswordResetConfirm />} />
-
+          
           {/* Protected Routes */}
           <Route
             path="/dashboard"
