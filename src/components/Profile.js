@@ -7,6 +7,7 @@ import {
   Container,
   Row,
   Col,
+  Spinner
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -23,20 +24,31 @@ const Profile = () => {
     email: "",
   });
 
-  const { updatePassword, updateProfile, currentUser } = useAuth();
+  const { updatePassword, updateProfile, currentUser, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect if not authenticated
   useEffect(() => {
-    // Only update form data if currentUser exists and has necessary properties
+    if (!isLoading && !isAuthenticated) {
+      console.log("User not authenticated, redirecting to login");
+      navigate("/login", { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  // Load user data
+  useEffect(() => {
     if (currentUser) {
-      console.log("Current user data:", currentUser); // Debug log
+      console.log("Loading current user data:", {
+        username: currentUser.username,
+        email: currentUser.email
+      });
       setFormData(prev => ({
         ...prev,
         username: currentUser.username || "",
         email: currentUser.email || "",
       }));
     } else {
-      console.log("No current user data available"); // Debug log
+      console.log("No current user data available");
     }
   }, [currentUser]);
 
@@ -67,7 +79,7 @@ const Profile = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submission started", { formData }); // Debug log
+    console.log("Form submission started", { formData });
 
     if (!validateForm()) {
       return;
@@ -78,24 +90,18 @@ const Profile = () => {
       setMessage("");
       setLoading(true);
 
-      // Create an array to store all update promises
       const updatePromises = [];
 
-      // Handle password update
       if (formData.newPassword) {
-        console.log("Adding password update to queue"); // Debug log
+        console.log("Adding password update to queue");
         updatePromises.push(updatePassword(formData.currentPassword, formData.newPassword));
       }
 
-      // Handle profile updates (username and email)
-      const currentUsername = currentUser?.username;
-      const currentEmail = currentUser?.email;
-      
-      if (formData.username !== currentUsername || formData.email !== currentEmail) {
-        console.log("Adding profile update to queue", { // Debug log
-          currentUsername,
+      if (formData.username !== currentUser?.username || formData.email !== currentUser?.email) {
+        console.log("Adding profile update to queue", {
+          oldUsername: currentUser?.username,
           newUsername: formData.username,
-          currentEmail,
+          oldEmail: currentUser?.email,
           newEmail: formData.email
         });
         
@@ -108,12 +114,10 @@ const Profile = () => {
         );
       }
 
-      // Execute all updates
       if (updatePromises.length > 0) {
         await Promise.all(updatePromises);
         setMessage("Profile updated successfully!");
 
-        // Clear sensitive form data
         setFormData(prev => ({
           ...prev,
           currentPassword: "",
@@ -121,16 +125,15 @@ const Profile = () => {
           confirmPassword: "",
         }));
 
-        // Redirect to dashboard after showing success message
         setTimeout(() => {
           navigate("/dashboard");
         }, 2000);
       } else {
-        console.log("No changes detected to update"); // Debug log
+        console.log("No changes detected to update");
         setMessage("No changes were made to update");
       }
     } catch (error) {
-      console.error("Profile update error:", error); // Debug log
+      console.error("Profile update error:", error);
       setError(error.message || "An error occurred while updating your profile");
     } finally {
       setLoading(false);
@@ -145,14 +148,29 @@ const Profile = () => {
     }));
   };
 
+  // Show loading spinner while auth state is initializing
+  if (isLoading) {
+    return (
+      <Container>
+        <Row className="justify-content-md-center">
+          <Col md={6} className="text-center mt-5">
+            <Spinner animation="border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </Spinner>
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
+
+  // Don't render form until we have user data
   if (!currentUser) {
-    console.log("Component rendered without user data"); // Debug log
     return (
       <Container>
         <Row className="justify-content-md-center">
           <Col md={6}>
             <Alert variant="warning">
-              Loading user data...
+              Unable to load user data. Please try logging in again.
             </Alert>
           </Col>
         </Row>
