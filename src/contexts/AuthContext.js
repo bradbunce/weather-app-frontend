@@ -31,10 +31,15 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     const initializeAuth = async () => {
       logger.info("Initializing authentication state");
       const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+      logger.debug("Stored token status:", { 
+        hasToken: !!storedToken,
+        tokenStart: storedToken ? storedToken.substring(0, 20) + '...' : null
+      });
 
       if (storedToken) {
         logger.debug("Found stored token, validating...");
         try {
+          logger.debug("Making validate-token request to:", `${AUTH_API_URL}/validate-token`);
           const response = await axios.get(`${AUTH_API_URL}/validate-token`, {
             headers: {
               Authorization: formatTokenForApi(storedToken, true),
@@ -42,7 +47,15 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
           });
 
           const userData = response.data.user;
-          logger.debug("User data from response:", userData);
+          logger.debug("Token validation response:", {
+            status: response.status,
+            userData: {
+              id: userData?.id,
+              username: userData?.username,
+              email: userData?.email
+            }
+          });
+
           logger.info("Token validation successful", { userId: userData.id });
           setUser({ ...userData, token: storedToken });
           setIsAuthenticated(true);
@@ -54,6 +67,8 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
           logger.warn("Stored token validation failed", {
             error: error.message,
             stack: error.stack,
+            response: error.response?.data,
+            status: error.response?.status
           });
           localStorage.removeItem(TOKEN_STORAGE_KEY);
           delete axios.defaults.headers.common["Authorization"];
@@ -511,6 +526,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
 
   const value = {
     user,
+    currentUser: user, // Add currentUser alias
     isAuthenticated,
     isLoading,
     login,
@@ -526,6 +542,15 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     logger.trace("Rendering loading state");
     return null;
   }
+
+  // Debug log the current auth state
+  logger.debug("Current auth state:", {
+    hasUser: !!user,
+    isAuthenticated,
+    isLoading,
+    username: user?.username,
+    email: user?.email
+  });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
