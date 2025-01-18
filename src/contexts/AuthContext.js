@@ -31,7 +31,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     const initializeAuth = async () => {
       logger.info("Initializing authentication state");
       const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-  
+
       if (storedToken) {
         logger.debug("Found stored token, validating...");
         try {
@@ -40,7 +40,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
               Authorization: formatTokenForApi(storedToken, true),
             },
           });
-  
+
           const userData = response.data.user;
           logger.debug("User data from response:", userData);
           logger.info("Token validation successful", { userId: userData.id });
@@ -59,14 +59,14 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
           delete axios.defaults.headers.common["Authorization"];
         }
       }
-  
+
       setIsLoading(false);
       onReady?.(); // Call onReady when auth initialization is complete
       logger.debug("Auth initialization complete", {
         isAuthenticated: Boolean(storedToken),
       });
     };
-  
+
     initializeAuth();
   }, [logger, formatTokenForApi, onReady]);
 
@@ -317,14 +317,15 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     }
   };
 
-  const updatePassword = async (currentPassword, newPassword) => {
-    logger.info("Attempting to update password");
+  const updateProfile = async ({ username, email, currentPassword }) => {
+    logger.info("Attempting to update profile", { username, email });
     try {
       const response = await axios.post(
-        `${AUTH_API_URL}/update-password`,
-        { 
+        `${AUTH_API_URL}/update-profile`,
+        {
+          username,
+          email,
           currentPassword,
-          newPassword
         },
         {
           headers: {
@@ -332,11 +333,72 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
           },
         }
       );
-  
+
       if (response.data.error) {
         throw new Error(response.data.error);
       }
-  
+
+      // Update the user state with new information
+      setUser((prev) => ({
+        ...prev,
+        username: username || prev.username,
+        email: email || prev.email,
+      }));
+
+      logger.info("Profile updated successfully", {
+        userId: user.id,
+        newUsername: username,
+        newEmail: email,
+      });
+
+      return true;
+    } catch (error) {
+      logger.error("Profile update failed", {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
+      // Handle specific error cases
+      if (error.response?.status === 409) {
+        const errorMessage = error.response.data.message;
+        if (errorMessage.includes("username")) {
+          throw new Error("This username is already taken");
+        } else if (errorMessage.includes("email")) {
+          throw new Error("This email address is already in use");
+        }
+      } else if (error.response?.status === 401) {
+        throw new Error("Current password is incorrect");
+      }
+
+      throw new Error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to update profile. Please try again."
+      );
+    }
+  };
+
+  const updatePassword = async (currentPassword, newPassword) => {
+    logger.info("Attempting to update password");
+    try {
+      const response = await axios.post(
+        `${AUTH_API_URL}/update-password`,
+        {
+          currentPassword,
+          newPassword,
+        },
+        {
+          headers: {
+            Authorization: formatTokenForApi(user.token, true),
+          },
+        }
+      );
+
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
       logger.info("Password updated successfully");
       return true;
     } catch (error) {
@@ -389,45 +451,47 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   const confirmPasswordReset = async (resetToken, newPassword) => {
     logger.info("Attempting to confirm password reset");
     try {
-        const response = await axios.post(
-            `${AUTH_API_URL}/reset-password-confirm`,
-            { 
-                resetToken,
-                newPassword
-            },
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        if (response.data.error) {
-            throw new Error(response.data.error);
+      const response = await axios.post(
+        `${AUTH_API_URL}/reset-password-confirm`,
+        {
+          resetToken,
+          newPassword,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
+      );
 
-        logger.info("Password reset confirmed successfully");
-        return true;
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      logger.info("Password reset confirmed successfully");
+      return true;
     } catch (error) {
-        logger.error("Password reset confirmation failed", {
-            error: error.message,
-            response: error.response?.data,
-            status: error.response?.status,
-        });
+      logger.error("Password reset confirmation failed", {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
 
-        // Map specific error messages to user-friendly ones
-        if (error.response?.data?.error === "Invalid or expired reset token") {
-            throw new Error("This reset link has expired or already been used. Please request a new password reset.");
-        }
-
+      // Map specific error messages to user-friendly ones
+      if (error.response?.data?.error === "Invalid or expired reset token") {
         throw new Error(
-            error.response?.data?.message ||
-            error.response?.data?.error ||
-            error.message ||
-            "Failed to reset password. Please try again."
+          "This reset link has expired or already been used. Please request a new password reset."
         );
+      }
+
+      throw new Error(
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          "Failed to reset password. Please try again."
+      );
     }
-};
+  };
 
   const value = {
     user,
@@ -439,6 +503,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     updatePassword,
     resetPassword,
     confirmPasswordReset,
+    updateProfile,
   };
 
   if (isLoading) {
