@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
 import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
@@ -17,54 +17,6 @@ export const Dashboard = () => {
     removeLocation, 
     clearError 
   } = useLocations();
-
-  // Step 1: Add axios interceptors for request/response debugging
-  useEffect(() => {
-    const requestInterceptor = axios.interceptors.request.use((request) => {
-      const currentToken = user?.token;
-      const requestToken = request.headers?.Authorization?.replace(
-        "Bearer ",
-        ""
-      );
-
-      console.log("🚀 Starting Request:", {
-        url: request.url,
-        method: request.method,
-        headers: request.headers,
-        tokenMatch: currentToken === requestToken,
-      });
-      return request;
-    });
-
-    const responseInterceptor = axios.interceptors.response.use(
-      (response) => {
-        console.log("✅ Response:", response);
-        return response;
-      },
-      (error) => {
-        console.log("❌ Response Error:", {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          headers: error.response?.headers,
-          corsHeaders: {
-            "Access-Control-Allow-Origin":
-              error.response?.headers?.["access-control-allow-origin"],
-            "Access-Control-Allow-Headers":
-              error.response?.headers?.["access-control-allow-headers"],
-            "Access-Control-Allow-Methods":
-              error.response?.headers?.["access-control-allow-methods"],
-          },
-        });
-        return Promise.reject(error);
-      }
-    );
-
-    return () => {
-      axios.interceptors.request.eject(requestInterceptor);
-      axios.interceptors.response.eject(responseInterceptor);
-    };
-  }, [user?.token]);
 
   const getCountryCode = (displayName) => {
     const parts = displayName.split(",");
@@ -88,6 +40,7 @@ export const Dashboard = () => {
     if (!newLocation.trim() || !user?.username) return;
 
     try {
+      // Only using axios for geocoding now
       const geocodingResponse = await axios.get(
         `https://nominatim.openstreetmap.org/search`,
         {
