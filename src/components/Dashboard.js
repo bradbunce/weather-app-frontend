@@ -84,6 +84,8 @@ export const Dashboard = () => {
     }
 
     try {
+      setIsLoadingLocations(true);  // Set loading state when starting fetch
+      
       console.log("🌐 API Configuration:", {
         baseURL: LOCATIONS_API_URL,
         fullURL: `${LOCATIONS_API_URL}/locations`,
@@ -122,6 +124,8 @@ export const Dashboard = () => {
       }
 
       setError(errorMessage);
+    } finally {
+      setIsLoadingLocations(false);  // Clear loading state when done
     }
   }, [user?.username, getAuthHeaders]);
 
@@ -290,6 +294,7 @@ export const Dashboard = () => {
     );
   }
 
+  // Replace the return section of your Dashboard component with this:
   return (
     <Container>
       <DebugPanel />
@@ -331,21 +336,19 @@ export const Dashboard = () => {
           <LoadingSpinner />
         </div>
       ) : (
-        <>
-          <Row xs={1} md={2} lg={3} className="g-4">
-            {locations.map((location) => (
-              <Col key={location.location_id}>
-                <WeatherCard location={location} onRemove={removeLocation} />
-              </Col>
-            ))}
-          </Row>
-
-          {locations.length === 0 && !error && (
-            <Alert variant="info">
-              No locations added yet. Add a city to get started!
-            </Alert>
-          )}
-        </>
+        <Row xs={1} md={2} lg={3} className="g-4">
+          {locations.map((location) => (
+            <Col key={location.location_id}>
+              <WeatherCard location={location} onRemove={removeLocation} />
+            </Col>
+          ))}
+        </Row>
+      )}
+      
+      {!isLoadingLocations && locations.length === 0 && !error && (
+        <Alert variant="info">
+          No locations added yet. Add a city to get started!
+        </Alert>
       )}
     </Container>
   );
