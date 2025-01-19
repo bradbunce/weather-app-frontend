@@ -8,7 +8,7 @@ const LocationsContext = createContext(null);
 
 export const LocationsProvider = ({ children }) => {
   const [locations, setLocations] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Change initial state to true
   const [error, setError] = useState(null);
   const { user, registerLoginCallback } = useAuth();
   const logger = useLogger();
@@ -16,6 +16,7 @@ export const LocationsProvider = ({ children }) => {
   const fetchLocations = useCallback(async () => {
     if (!user?.username) {
       logger.info("Skipping locations fetch - no user");
+      setIsLoading(false);
       return;
     }
 
@@ -75,6 +76,9 @@ export const LocationsProvider = ({ children }) => {
   useEffect(() => {
     if (user?.username) {
       fetchLocations();
+    } else {
+      // Ensure loading state is set to false if no user
+      setIsLoading(false);
     }
   }, [user?.username, fetchLocations]);
 
@@ -113,6 +117,7 @@ export const LocationsProvider = ({ children }) => {
 
   const removeLocation = useCallback(async (locationId) => {
     try {
+      setIsLoading(true);
       setError(null);
       
       await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`);
@@ -128,6 +133,8 @@ export const LocationsProvider = ({ children }) => {
       });
       setError(err.response?.data?.message || "Failed to remove location");
       throw err;
+    } finally {
+      setIsLoading(false);
     }
   }, [logger]);
 
