@@ -14,13 +14,6 @@ export const Dashboard = () => {
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const { user } = useAuth();
 
-  console.log('🕒 RENDER Dashboard:', {
-    time: new Date().toISOString(),
-    isLoadingLocations,
-    hasUser: !!user,
-    locationsCount: locations.length
-  });
-
   // Step 1: Add axios interceptors for request/response debugging
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use((request) => {
@@ -91,9 +84,6 @@ export const Dashboard = () => {
     }
 
     try {
-      setIsLoadingLocations(true);
-      console.log('⭐ SHOWING Dashboard Spinner: Setting isLoadingLocations to true');
-      
       console.log("🌐 API Configuration:", {
         baseURL: LOCATIONS_API_URL,
         fullURL: `${LOCATIONS_API_URL}/locations`,
@@ -132,13 +122,12 @@ export const Dashboard = () => {
       }
 
       setError(errorMessage);
-    } finally {
-      setIsLoadingLocations(false);
-      console.log('🔵 Dashboard: Finished loading locations');
     }
   }, [user?.username, getAuthHeaders]);
 
   useEffect(() => {
+    let mounted = true;
+
     if (user?.token) {
       try {
         const [, payload] = user.token.split(".");
@@ -155,9 +144,15 @@ export const Dashboard = () => {
       } catch (err) {
         console.error("Token parsing error:", err);
       }
+
+      if (mounted) {
+        fetchLocations();
+      }
     }
 
-    fetchLocations();
+    return () => {
+      mounted = false;
+    };
   }, [user, fetchLocations]);
 
   const removeLocation = useCallback(
@@ -295,17 +290,6 @@ export const Dashboard = () => {
     );
   }
 
-  if (isLoadingLocations) {
-    console.log('⭐ SHOWING Dashboard Spinner:', {
-      time: new Date().toISOString()
-    });
-    return (
-      <Container>
-        <LoadingSpinner />
-      </Container>
-    );
-  }
-
   return (
     <Container>
       <DebugPanel />
@@ -342,18 +326,26 @@ export const Dashboard = () => {
         </Alert>
       )}
 
-      <Row xs={1} md={2} lg={3} className="g-4">
-        {locations.map((location) => (
-          <Col key={location.location_id}>
-            <WeatherCard location={location} onRemove={removeLocation} />
-          </Col>
-        ))}
-      </Row>
+      {isLoadingLocations ? (
+        <div className="d-flex justify-content-center py-5">
+          <LoadingSpinner />
+        </div>
+      ) : (
+        <>
+          <Row xs={1} md={2} lg={3} className="g-4">
+            {locations.map((location) => (
+              <Col key={location.location_id}>
+                <WeatherCard location={location} onRemove={removeLocation} />
+              </Col>
+            ))}
+          </Row>
 
-      {locations.length === 0 && !error && (
-        <Alert variant="info">
-          No locations added yet. Add a city to get started!
-        </Alert>
+          {locations.length === 0 && !error && (
+            <Alert variant="info">
+              No locations added yet. Add a city to get started!
+            </Alert>
+          )}
+        </>
       )}
     </Container>
   );
