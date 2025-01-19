@@ -54,7 +54,6 @@ export const Dashboard = () => {
     if (!newLocation.trim() || !user?.username) return;
 
     try {
-      // Only using axios for geocoding now
       const geocodingResponse = await axios.get(
         `https://nominatim.openstreetmap.org/search`,
         {
@@ -119,6 +118,17 @@ export const Dashboard = () => {
     );
   }
 
+  // If still loading, show spinner
+  if (isLoading) {
+    return (
+      <Container>
+        <div className="d-flex justify-content-center py-5">
+          <LoadingSpinner />
+        </div>
+      </Container>
+    );
+  }
+
   return (
     <Container>
       <DebugPanel />
@@ -155,27 +165,19 @@ export const Dashboard = () => {
         </Alert>
       )}
 
-{showSpinner && isLoading ? (
-  <div className="d-flex justify-content-center py-5">
-    <LoadingSpinner />
-  </div>
-) : (
-  <>
-    <Row xs={1} md={2} lg={3} className="g-4">
-      {locations.map((location) => (
-        <Col key={location.location_id}>
-          <WeatherCard location={location} onRemove={removeLocation} />
-        </Col>
-      ))}
-    </Row>
+      <Row xs={1} md={2} lg={3} className="g-4">
+        {locations.map((location) => (
+          <Col key={location.location_id}>
+            <WeatherCard location={location} onRemove={removeLocation} />
+          </Col>
+        ))}
+      </Row>
 
-    {!isLoading && locations.length === 0 && !error && (
-      <Alert variant="info">
-        No locations added yet. Add a city to get started!
-      </Alert>
-    )}
-  </>
-)}
+      {locations.length === 0 && !error && (
+        <Alert variant="info">
+          No locations added yet. Add a city to get started!
+        </Alert>
+      )}
     </Container>
   );
 };
