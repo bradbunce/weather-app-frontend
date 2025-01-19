@@ -14,6 +14,13 @@ export const Dashboard = () => {
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const { user } = useAuth();
 
+  console.log('🕒 RENDER Dashboard:', {
+    time: new Date().toISOString(),
+    isLoadingLocations,
+    hasUser: !!user,
+    locationsCount: locations.length
+  });
+
   // Step 1: Add axios interceptors for request/response debugging
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use((request) => {
@@ -85,6 +92,7 @@ export const Dashboard = () => {
 
     try {
       setIsLoadingLocations(true);
+      console.log('⭐ SHOWING Dashboard Spinner: Setting isLoadingLocations to true');
       
       console.log("🌐 API Configuration:", {
         baseURL: LOCATIONS_API_URL,
@@ -126,6 +134,7 @@ export const Dashboard = () => {
       setError(errorMessage);
     } finally {
       setIsLoadingLocations(false);
+      console.log('🔵 Dashboard: Finished loading locations');
     }
   }, [user?.username, getAuthHeaders]);
 
@@ -286,8 +295,10 @@ export const Dashboard = () => {
     );
   }
 
-  // Only show loading spinner if we're explicitly fetching locations
   if (isLoadingLocations) {
+    console.log('⭐ SHOWING Dashboard Spinner:', {
+      time: new Date().toISOString()
+    });
     return (
       <Container>
         <LoadingSpinner />
