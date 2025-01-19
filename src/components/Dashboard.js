@@ -155,27 +155,27 @@ export const Dashboard = () => {
         </Alert>
       )}
 
-      {showSpinner && isLoading ? (
-        <div className="d-flex justify-content-center py-5">
-          <LoadingSpinner />
-        </div>
-      ) : (
-        <>
-          <Row xs={1} md={2} lg={3} className="g-4">
-            {locations.map((location) => (
-              <Col key={location.location_id}>
-                <WeatherCard location={location} onRemove={removeLocation} />
-              </Col>
-            ))}
-          </Row>
+{showSpinner && isLoading ? (
+  <div className="d-flex justify-content-center py-5">
+    <LoadingSpinner />
+  </div>
+) : (
+  <>
+    <Row xs={1} md={2} lg={3} className="g-4">
+      {locations.map((location) => (
+        <Col key={location.location_id}>
+          <WeatherCard location={location} onRemove={removeLocation} />
+        </Col>
+      ))}
+    </Row>
 
-          {locations.length === 0 && !error && (
-            <Alert variant="info">
-              No locations added yet. Add a city to get started!
-            </Alert>
-          )}
-        </>
-      )}
+    {!isLoading && locations.length === 0 && !error && (
+      <Alert variant="info">
+        No locations added yet. Add a city to get started!
+      </Alert>
+    )}
+  </>
+)}
     </Container>
   );
 };
