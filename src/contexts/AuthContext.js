@@ -25,7 +25,10 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     isLoading: true
   });
   const initializeStarted = useRef(false);
-
+  const [loginCallbacks] = useState({
+    onLoginSuccess: null
+  });
+  
   // Format token based on API needs - wrapped in useCallback
   const formatTokenForApi = useCallback((token, needsBearer = true) => {
     return needsBearer ? `Bearer ${token}` : token;
@@ -214,6 +217,14 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
       }
 
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      
+      // Set auth headers before calling location fetch callback
+      axios.defaults.headers.common["Authorization"] = formatTokenForApi(
+        token,
+        true
+      );
+
+      // Update auth state
       updateAuthState({
         user: {
           ...userData,
@@ -224,10 +235,14 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
         isLoading: false
       });
 
-      axios.defaults.headers.common["Authorization"] = formatTokenForApi(
-        token,
-        true
-      );
+      // If we have a login success callback (from LocationsContext), call it
+      if (loginCallbacks.onLoginSuccess) {
+        try {
+          await loginCallbacks.onLoginSuccess();
+        } catch (error) {
+          logger.error("Error in login success callback", { error });
+        }
+      }
 
       logger.info("Login successful", {
         userId,
@@ -576,9 +591,13 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     }
   };
 
+  const registerLoginCallback = useCallback((callback) => {
+    loginCallbacks.onLoginSuccess = callback;
+  }, [loginCallbacks]);
+
   const value = {
     user: authState.user,
-    currentUser: authState.user, // Add currentUser alias
+    currentUser: authState.user,
     isAuthenticated: authState.isAuthenticated,
     isLoading: authState.isLoading,
     isInitialized: authState.isInitialized,
@@ -589,6 +608,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     resetPassword,
     confirmPasswordReset,
     updateProfile,
+    registerLoginCallback 
   };
 
   // Debug log the current auth state

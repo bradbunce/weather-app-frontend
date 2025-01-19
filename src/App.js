@@ -13,17 +13,11 @@ import { LoadingSpinner } from "./components/LoadingSpinner";
 import { PasswordResetConfirm } from "./components/PasswordResetConfirm";
 // Context Providers
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { LocationsProvider } from "./contexts/LocationsContext";
 import { LDProvider } from "./contexts/LaunchDarklyContext";
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, isInitialized } = useAuth();
-  
-  console.log('🕒 RENDER PrivateRoute:', {
-    time: new Date().toISOString(),
-    isAuthenticated,
-    isInitialized,
-    pathname: window.location.pathname
-  });
 
   if (!isInitialized) {
     return null;
@@ -34,13 +28,6 @@ const PrivateRoute = ({ children }) => {
 
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, isInitialized } = useAuth();
-  
-  console.log('🕒 RENDER PublicRoute:', {
-    time: new Date().toISOString(),
-    isAuthenticated,
-    isInitialized,
-    pathname: window.location.pathname
-  });
 
   if (!isInitialized) {
     return null;
@@ -51,26 +38,11 @@ const PublicRoute = ({ children }) => {
 
 const AppContent = ({ ldReady, authReady }) => {
   const { isInitialized } = useAuth();
-  
-  console.log('🕒 RENDER AppContent:', {
-    time: new Date().toISOString(),
-    ldReady,
-    authReady,
-    isInitialized,
-    pathname: window.location.pathname
-  });
 
+  // Only show spinner during initial app load, not during operations
   const isInitialLoading = !ldReady || !authReady || !isInitialized;
 
   if (isInitialLoading) {
-    console.log('⭐ SHOWING AppContent Spinner:', {
-      time: new Date().toISOString(),
-      reason: {
-        ldNotReady: !ldReady,
-        authNotReady: !authReady,
-        notInitialized: !isInitialized
-      }
-    });
     return (
       <div className="d-flex flex-column min-vh-100">
         <NavigationBar />
@@ -135,27 +107,23 @@ export const App = () => {
   const [ldReady, setLdReady] = useState(false);
   const [authReady, setAuthReady] = useState(false);
 
-  console.log('🕒 RENDER App:', { 
-    time: new Date().toISOString(),
-    ldReady, 
-    authReady
-  });
-
   return (
     <LDProvider 
       onReady={() => {
-        console.log('🔵 LaunchDarkly Ready');
+        console.log('LaunchDarkly Ready');
         setLdReady(true);
       }}
     >
       <BrowserRouter>
         <AuthProvider 
           onReady={() => {
-            console.log('🔵 Auth Provider Ready');
+            console.log('Auth Provider Ready');
             setAuthReady(true);
           }}
         >
-          <AppContent ldReady={ldReady} authReady={authReady} />
+          <LocationsProvider>
+            <AppContent ldReady={ldReady} authReady={authReady} />
+          </LocationsProvider>
         </AuthProvider>
       </BrowserRouter>
     </LDProvider>
