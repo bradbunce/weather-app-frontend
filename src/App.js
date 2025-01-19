@@ -16,18 +16,9 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LDProvider } from "./contexts/LaunchDarklyContext";
 
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, isInitialized, isLoading } = useAuth();
-  
-  console.log('PrivateRoute State:', {
-    isAuthenticated,
-    isInitialized,
-    isLoading,
-    timestamp: new Date().toISOString(),
-    path: window.location.pathname
-  });
+  const { isAuthenticated, isInitialized } = useAuth();
 
-  // Don't show spinner here, let AppContent handle loading state
-  if (!isInitialized || isLoading) {
+  if (!isInitialized) {
     return null;
   }
 
@@ -35,17 +26,9 @@ const PrivateRoute = ({ children }) => {
 };
 
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, isInitialized, isLoading } = useAuth();
+  const { isAuthenticated, isInitialized } = useAuth();
 
-  console.log('PublicRoute State:', {
-    isAuthenticated,
-    isInitialized,
-    isLoading,
-    timestamp: new Date().toISOString(),
-    path: window.location.pathname
-  });
-
-  if (!isInitialized || isLoading) {
+  if (!isInitialized) {
     return null;
   }
 
@@ -53,28 +36,12 @@ const PublicRoute = ({ children }) => {
 };
 
 const AppContent = ({ ldReady, authReady }) => {
-  const { isLoading, isInitialized } = useAuth();
+  const { isInitialized } = useAuth();
 
-  console.log('AppContent State:', {
-    ldReady,
-    authReady,
-    isLoading,
-    isInitialized,
-    timestamp: new Date().toISOString(),
-    path: window.location.pathname
-  });
+  // Only show spinner during initial app load, not during operations
+  const isInitialLoading = !ldReady || !authReady || !isInitialized;
 
-  const isAppReady = ldReady && authReady && isInitialized && !isLoading;
-
-  if (!isAppReady) {
-    console.log('Showing AppContent spinner because:', {
-      ldNotReady: !ldReady,
-      authNotReady: !authReady,
-      isStillLoading: isLoading,
-      notInitialized: !isInitialized,
-      timestamp: new Date().toISOString()
-    });
-
+  if (isInitialLoading) {
     return (
       <div className="d-flex flex-column min-vh-100">
         <NavigationBar />
@@ -138,12 +105,6 @@ const AppContent = ({ ldReady, authReady }) => {
 export const App = () => {
   const [ldReady, setLdReady] = useState(false);
   const [authReady, setAuthReady] = useState(false);
-
-  console.log('App Initialization Status:', { 
-    ldReady, 
-    authReady,
-    timestamp: new Date().toISOString()
-  });
 
   return (
     <LDProvider 
