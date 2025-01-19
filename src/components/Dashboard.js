@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
 import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
@@ -8,6 +8,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 
 export const Dashboard = () => {
   const [newLocation, setNewLocation] = useState("");
+  const [showSpinner, setShowSpinner] = useState(false);
   const { user } = useAuth();
   const { 
     locations, 
@@ -17,6 +18,19 @@ export const Dashboard = () => {
     removeLocation, 
     clearError 
   } = useLocations();
+
+  useEffect(() => {
+    let timer;
+    if (isLoading) {
+      timer = setTimeout(() => {
+        setShowSpinner(true);
+      }, 2000);
+    } else {
+      setShowSpinner(false);
+    }
+
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   const getCountryCode = (displayName) => {
     const parts = displayName.split(",");
@@ -141,7 +155,7 @@ export const Dashboard = () => {
         </Alert>
       )}
 
-      {isLoading ? (
+      {showSpinner && isLoading ? (
         <div className="d-flex justify-content-center py-5">
           <LoadingSpinner />
         </div>
