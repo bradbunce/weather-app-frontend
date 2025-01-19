@@ -11,7 +11,7 @@ export const Dashboard = () => {
   const [locations, setLocations] = useState([]);
   const [newLocation, setNewLocation] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const { user } = useAuth();
 
   // Step 1: Add axios interceptors for request/response debugging
@@ -80,11 +80,12 @@ export const Dashboard = () => {
   const fetchLocations = useCallback(async () => {
     if (!user?.username) {
       console.log("👤 No user data, skipping locations fetch");
-      setLoading(false);
       return;
     }
 
     try {
+      setIsLoadingLocations(true);
+      
       console.log("🌐 API Configuration:", {
         baseURL: LOCATIONS_API_URL,
         fullURL: `${LOCATIONS_API_URL}/locations`,
@@ -106,7 +107,6 @@ export const Dashboard = () => {
       }
 
       setLocations(locationData);
-      setLoading(false);
     } catch (err) {
       console.error("❌ Error fetching locations:", {
         message: err.message,
@@ -124,7 +124,8 @@ export const Dashboard = () => {
       }
 
       setError(errorMessage);
-      setLoading(false);
+    } finally {
+      setIsLoadingLocations(false);
     }
   }, [user?.username, getAuthHeaders]);
 
@@ -285,7 +286,8 @@ export const Dashboard = () => {
     );
   }
 
-  if (loading) {
+  // Only show loading spinner if we're explicitly fetching locations
+  if (isLoadingLocations) {
     return (
       <Container>
         <LoadingSpinner />
