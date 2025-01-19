@@ -118,8 +118,7 @@ export const Dashboard = () => {
     );
   }
 
-  // If still loading, show spinner
-  if (isLoading) {
+  if (showSpinner) {
     return (
       <Container>
         <div className="d-flex justify-content-center py-5">
