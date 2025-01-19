@@ -9,6 +9,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 export const Dashboard = () => {
   const [newLocation, setNewLocation] = useState("");
   const [showSpinner, setShowSpinner] = useState(false);
+  const [showNoLocations, setShowNoLocations] = useState(false);
   const { user } = useAuth();
   const { 
     locations, 
@@ -20,17 +21,31 @@ export const Dashboard = () => {
   } = useLocations();
 
   useEffect(() => {
-    let timer;
+    let loadingTimer;
+    let noLocationsTimer;
+
     if (isLoading) {
-      timer = setTimeout(() => {
+      loadingTimer = setTimeout(() => {
         setShowSpinner(true);
       }, 2000);
     } else {
       setShowSpinner(false);
+
+      // Only show "No locations" if loading is complete and no locations exist
+      if (locations.length === 0 && !error) {
+        noLocationsTimer = setTimeout(() => {
+          setShowNoLocations(true);
+        }, 2000);
+      } else {
+        setShowNoLocations(false);
+      }
     }
 
-    return () => clearTimeout(timer);
-  }, [isLoading]);
+    return () => {
+      clearTimeout(loadingTimer);
+      clearTimeout(noLocationsTimer);
+    };
+  }, [isLoading, locations.length, error]);
 
   const getCountryCode = (displayName) => {
     const parts = displayName.split(",");
@@ -172,7 +187,7 @@ export const Dashboard = () => {
         ))}
       </Row>
 
-      {locations.length === 0 && !error && (
+      {showNoLocations && (
         <Alert variant="info">
           No locations added yet. Add a city to get started!
         </Alert>
