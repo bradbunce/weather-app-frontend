@@ -29,6 +29,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   const [loginCallbacks] = useState({
     onLoginSuccess: null
   });
+  const cleanup = useWebSocketCleanup();
   
   // Format token based on API needs - wrapped in useCallback
   const formatTokenForApi = useCallback((token, needsBearer = true) => {
@@ -274,12 +275,10 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {  // Make logout a useCallback
     logger.info("Initiating logout process");
-    const cleanup = useWebSocketCleanup();
-    
     try {
-        // First do WebSocket cleanup
+        // Use the cleanup function from the component level
         await cleanup(authState.user?.token);
 
         const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -318,7 +317,8 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
         delete axios.defaults.headers.common["Authorization"];
         logger.info("Logout complete");
     }
-};
+}, [cleanup, authState.user, logger, updateAuthState, formatTokenForApi]);  // Add dependencies
+
 
   const refreshToken = async () => {
     logger.debug("Attempting token refresh");

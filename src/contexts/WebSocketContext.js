@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import React, { 
+    createContext, 
+    useContext, 
+    useCallback, 
+    useMemo, 
+    useEffect 
+} from 'react';
 import { useAuth } from './AuthContext';
 import { useLogger } from '../utils/logger';
 
