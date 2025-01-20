@@ -1,7 +1,6 @@
 import React, { 
     createContext, 
-    useContext, 
-    useCallback, 
+    useContext,  
     useMemo, 
     useEffect 
 } from 'react';
@@ -27,16 +26,23 @@ class WebSocketService {
             });
             return;
         }
+
+        if (!token) {
+            this.logger.warn('Attempted to connect without token', {
+                cityName,
+                stack: new Error().stack
+            });
+            return;
+        }
         
         if (this.connections.has(cityName)) {
             this.logger.debug('WebSocket connection already exists', { 
                 cityName,
-                existingConnection: {
-                    readyState: this.connections.get(cityName).readyState,
-                    timestamp: new Date().toISOString()
-                }
+                existingConnectionState: this.connections.get(cityName).readyState
             });
-            return;
+            
+            // Return the existing connection instead of creating a new one
+            return this.connections.get(cityName);
         }
 
         try {
@@ -44,6 +50,9 @@ class WebSocketService {
             const ws = new WebSocket(websocketUrl);
 
             ws.onopen = () => {
+                // Only store the connection after it's successfully opened
+                this.connections.set(cityName, ws);
+
                 this.logger.info('WebSocket connected', { 
                     cityName,
                     connectionCount: this.connections.size,
@@ -51,7 +60,7 @@ class WebSocketService {
                 });
                 
                 // Subscribe to weather updates
-                if (cityName && countryCode) {
+                if (countryCode) {
                     this.subscribe(ws, { cityName, countryCode, token });
                 }
             };
@@ -88,16 +97,19 @@ class WebSocketService {
             };
 
             ws.onclose = () => {
-                this.logger.debug('WebSocket closed', { cityName });
+                this.logger.debug('WebSocket closed', { 
+                    cityName,
+                    remainingConnections: Array.from(this.connections.keys()).filter(c => c !== cityName)
+                });
                 this.connections.delete(cityName);
             };
 
-            this.connections.set(cityName, ws);
             return ws;
         } catch (error) {
             this.logger.error('Failed to establish connection', {
                 error: error.message,
-                cityName
+                cityName,
+                stack: error.stack
             });
             onError?.('Failed to establish connection');
         }
@@ -111,7 +123,7 @@ class WebSocketService {
                 params,
                 stack: new Error().stack
             });
-            return;
+            return false;
         }
         
         if (ws.readyState === WebSocket.OPEN) {
@@ -120,24 +132,37 @@ class WebSocketService {
                 countryCode,
                 connectionState: ws.readyState
             });
-
-            ws.send(JSON.stringify({
-                action: 'subscribe',
-                locationName: cityName,
-                countryCode,
-                token
-            }));
+    
+            try {
+                ws.send(JSON.stringify({
+                    action: 'subscribe',
+                    locationName: cityName,
+                    countryCode,
+                    token
+                }));
+                return true;
+            } catch (error) {
+                this.logger.error('Error subscribing', {
+                    error: error.message,
+                    cityName
+                });
+                return false;
+            }
         } else {
             this.logger.warn('Attempted to subscribe when socket not open', {
                 cityName,
                 socketState: ws.readyState
             });
+            return false;
         }
     }
-
+    
     unsubscribe(cityName, params) {
         const ws = this.connections.get(cityName);
-        if (!ws) return;
+        if (!ws) {
+            this.logger.debug('No connection found to unsubscribe', { cityName });
+            return;
+        }
 
         try {
             if (ws.readyState === WebSocket.OPEN) {
@@ -161,8 +186,16 @@ class WebSocketService {
     closeConnection(cityName) {
         const ws = this.connections.get(cityName);
         if (ws) {
-            ws.close();
-            this.connections.delete(cityName);
+            try {
+                ws.close();
+            } catch (error) {
+                this.logger.error('Error closing connection', {
+                    error: error.message,
+                    cityName
+                });
+            } finally {
+                this.connections.delete(cityName);
+            }
         }
     }
 
@@ -190,14 +223,20 @@ class WebSocketService {
     }
 
     cleanup(token) {
-        // Send logout message to server
-        const anyConnection = this.connections.values().next().value;
+        this.logger.info('Starting WebSocket cleanup', {
+            connectionCount: this.connections.size,
+            activeConnections: Array.from(this.connections.keys())
+        });
+
+        // Send logout message through any open connection
+        const anyConnection = Array.from(this.connections.values())[0];
         if (anyConnection?.readyState === WebSocket.OPEN) {
             try {
                 anyConnection.send(JSON.stringify({
                     action: 'logout',
                     token
                 }));
+                this.logger.debug('Sent logout message successfully');
             } catch (error) {
                 this.logger.error('Error sending logout message', {
                     error: error.message
@@ -206,11 +245,11 @@ class WebSocketService {
         }
 
         // Close all connections
-        for (const [cityName, ws] of this.connections) {
+        for (const [cityName] of this.connections) {
             try {
-                ws.close();
+                this.unsubscribe(cityName, { token });
             } catch (error) {
-                this.logger.error('Error closing connection', {
+                this.logger.error('Error during cleanup', {
                     error: error.message,
                     cityName
                 });
@@ -218,6 +257,7 @@ class WebSocketService {
         }
 
         this.connections.clear();
+        this.logger.info('WebSocket cleanup completed');
     }
 }
 
@@ -266,27 +306,6 @@ export function useWebSocket() {
         throw new Error('useWebSocket must be used within a WebSocketProvider');
     }
     return context;
-}
-
-export function useWebSocketCleanup() {
-    const context = useContext(WebSocketContext);
-    const logger = useLogger();
-    
-    return useCallback(async (token) => {
-        if (!context) {
-            logger.warn('Attempted cleanup outside WebSocket context');
-            return;
-        }
-        
-        logger.info('Starting WebSocket cleanup', {
-            connectionCount: context.connections.size,
-            activeConnections: Array.from(context.connections.keys())
-        });
-        
-        await context.cleanup(token);
-        
-        logger.info('WebSocket cleanup completed');
-    }, [context, logger]);
 }
 
 export default WebSocketContext;

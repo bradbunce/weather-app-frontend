@@ -60,36 +60,37 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
 
     // Initialize WebSocket connection
     useEffect(() => {
-      logger.debug('WeatherCard effect triggered', {
-          hasCity: Boolean(connectionParams.cityName),
-          hasToken: Boolean(connectionParams.token),
-          cityName: connectionParams.cityName,
-          location: location // Log the full location prop
-      });
-
-      if (connectionParams.cityName && connectionParams.token) {
-          logger.debug('Initiating WebSocket connection', {
-              cityName: connectionParams.cityName,
-              countryCode: connectionParams.countryCode
-          });
-
-          webSocket.connect({
-              ...connectionParams,
-              onMessage: handleMessage,
-              onError: handleError
-          });
-          setIsConnected(true);
-      }
-
-      return () => {
-          if (connectionParams.cityName) {
-              logger.debug('Cleaning up WebSocket connection', {
-                  cityName: connectionParams.cityName
-              });
-              webSocket.unsubscribe(connectionParams.cityName, connectionParams);
-          }
-      };
-  }, [connectionParams, webSocket, handleMessage, handleError, logger, location]);
+        logger.debug('WeatherCard effect triggered', {
+            hasCity: Boolean(connectionParams.cityName),
+            hasToken: Boolean(connectionParams.token),
+            cityName: connectionParams.cityName,
+            isConnected
+        });
+    
+        if (connectionParams.cityName && connectionParams.token && !isConnected) {
+            logger.debug('Initiating WebSocket connection', {
+                cityName: connectionParams.cityName,
+                countryCode: connectionParams.countryCode
+            });
+    
+            webSocket.connect({
+                ...connectionParams,
+                onMessage: handleMessage,
+                onError: handleError
+            });
+            setIsConnected(true);
+        }
+    
+        return () => {
+            if (connectionParams.cityName && isConnected) {
+                logger.debug('Cleaning up WebSocket connection', {
+                    cityName: connectionParams.cityName
+                });
+                webSocket.unsubscribe(connectionParams.cityName, connectionParams);
+                setIsConnected(false);
+            }
+        };
+    }, [connectionParams, webSocket, handleMessage, handleError, logger, isConnected]);
 
     // Handle refresh button click
     const handleRefresh = useCallback(() => {
