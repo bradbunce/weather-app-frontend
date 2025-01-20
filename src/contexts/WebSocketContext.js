@@ -250,4 +250,25 @@ export function useWebSocket() {
     return context;
 }
 
+export function useWebSocketCleanup() {
+    const context = useContext(WebSocketContext);
+    const logger = useLogger();
+    
+    return useCallback(async (token) => {
+        if (!context) {
+            logger.warn('Attempted cleanup outside WebSocket context');
+            return;
+        }
+        
+        logger.info('Starting WebSocket cleanup', {
+            connectionCount: context.connections.size,
+            activeConnections: Array.from(context.connections.keys())
+        });
+        
+        await context.cleanup(token);
+        
+        logger.info('WebSocket cleanup completed');
+    }, [context, logger]);
+}
+
 export default WebSocketContext;

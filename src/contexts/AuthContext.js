@@ -10,6 +10,7 @@ import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from "axios";
 import { useLogger } from "../utils/logger";
 import { createLDContexts } from "../config/launchDarkly";
+import { useWebSocketCleanup } from './WebSocketContext';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = "authToken";
@@ -275,78 +276,49 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
 
   const logout = async () => {
     logger.info("Initiating logout process");
+    const cleanup = useWebSocketCleanup();
+    
     try {
-      if (window.activeWebSockets) {
-        logger.debug(`Closing WebSocket connections`, {
-          connectionCount: window.activeWebSockets.size,
-        });
-        const closePromises = Array.from(window.activeWebSockets).map((ws) => {
-          return new Promise((resolve) => {
-            const originalOnClose = ws.onclose;
-            ws.onclose = (event) => {
-              if (originalOnClose) originalOnClose.call(ws, event);
-              resolve();
-            };
+        // First do WebSocket cleanup
+        await cleanup(authState.user?.token);
 
+        const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+        if (currentToken) {
             try {
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ action: "unsubscribe" }));
-              }
-              ws.close();
+                await axios.post(
+                    `${AUTH_API_URL}/logout`,
+                    {},
+                    {
+                        headers: {
+                            Authorization: formatTokenForApi(currentToken, true),
+                        },
+                    }
+                );
             } catch (error) {
-              logger.error("Error closing WebSocket", {
-                error: error.message,
-                stack: error.stack,
-              });
-              resolve();
+                logger.warn("Logout API notification failed", {
+                    error: error.message,
+                    stack: error.stack,
+                });
             }
-          });
-        });
-
-        await Promise.race([
-          Promise.all(closePromises),
-          new Promise((resolve) => setTimeout(resolve, 3000)),
-        ]);
-        window.activeWebSockets.clear();
-      }
-
-      const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (currentToken) {
-        try {
-          await axios.post(
-            `${AUTH_API_URL}/logout`,
-            {},
-            {
-              headers: {
-                Authorization: formatTokenForApi(currentToken, true),
-              },
-            }
-          );
-        } catch (error) {
-          logger.warn("Logout API notification failed", {
+        }
+    } catch (error) {
+        logger.error("Logout process error", {
             error: error.message,
             stack: error.stack,
-          });
-        }
-      }
-    } catch (error) {
-      logger.error("Logout process error", {
-        error: error.message,
-        stack: error.stack,
-      });
+        });
     } finally {
-      window.dispatchEvent(new Event("auth-logout"));
+        window.dispatchEvent(new Event("auth-logout"));
 
-      updateAuthState({
-        user: null,
-        isAuthenticated: false
-      });
-      
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      delete axios.defaults.headers.common["Authorization"];
-      logger.info("Logout complete");
+        updateAuthState({
+            user: null,
+            isAuthenticated: false
+        });
+        
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        delete axios.defaults.headers.common["Authorization"];
+        logger.info("Logout complete");
     }
-  };
+};
 
   const refreshToken = async () => {
     logger.debug("Attempting token refresh");
