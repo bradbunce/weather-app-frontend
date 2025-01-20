@@ -14,8 +14,22 @@ class WebSocketService {
     connect(params) {
         const { token, cityName, countryCode, onMessage, onError } = params;
         
+        if (!cityName) {
+            this.logger.warn('Attempted to connect with null/undefined cityName', {
+                params,
+                stack: new Error().stack
+            });
+            return;
+        }
+        
         if (this.connections.has(cityName)) {
-            this.logger.debug('WebSocket connection already exists', { cityName });
+            this.logger.debug('WebSocket connection already exists', { 
+                cityName,
+                existingConnection: {
+                    readyState: this.connections.get(cityName).readyState,
+                    timestamp: new Date().toISOString()
+                }
+            });
             return;
         }
 
@@ -24,7 +38,11 @@ class WebSocketService {
             const ws = new WebSocket(websocketUrl);
 
             ws.onopen = () => {
-                this.logger.info('WebSocket connected', { cityName });
+                this.logger.info('WebSocket connected', { 
+                    cityName,
+                    connectionCount: this.connections.size,
+                    activeConnections: Array.from(this.connections.keys())
+                });
                 
                 // Subscribe to weather updates
                 if (cityName && countryCode) {
@@ -82,13 +100,32 @@ class WebSocketService {
     subscribe(ws, params) {
         const { cityName, countryCode, token } = params;
         
+        if (!cityName) {
+            this.logger.warn('Attempted to subscribe with null/undefined cityName', {
+                params,
+                stack: new Error().stack
+            });
+            return;
+        }
+        
         if (ws.readyState === WebSocket.OPEN) {
+            this.logger.debug('Subscribing to location', {
+                cityName,
+                countryCode,
+                connectionState: ws.readyState
+            });
+
             ws.send(JSON.stringify({
                 action: 'subscribe',
                 locationName: cityName,
                 countryCode,
                 token
             }));
+        } else {
+            this.logger.warn('Attempted to subscribe when socket not open', {
+                cityName,
+                socketState: ws.readyState
+            });
         }
     }
 
@@ -186,10 +223,17 @@ export function WebSocketProvider({ children }) {
 
     // Cleanup on logout
     useEffect(() => {
+        logger.debug('WebSocketProvider auth state changed', {
+            hasUser: Boolean(user),
+            connectionCount: webSocketService.connections.size,
+            activeConnections: Array.from(webSocketService.connections.keys())
+        });
+
         if (!user) {
+            logger.info('Cleaning up WebSocket connections on logout/unmount');
             webSocketService.cleanup(user?.token);
         }
-    }, [user, webSocketService]);
+    }, [user, webSocketService, logger]);
 
     return (
         <WebSocketContext.Provider value={webSocketService}>

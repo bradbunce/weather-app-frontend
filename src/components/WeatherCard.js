@@ -60,21 +60,36 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
 
     // Initialize WebSocket connection
     useEffect(() => {
-        if (connectionParams.cityName && connectionParams.token) {
-            webSocket.connect({
-                ...connectionParams,
-                onMessage: handleMessage,
-                onError: handleError
-            });
-            setIsConnected(true);
-        }
+      logger.debug('WeatherCard effect triggered', {
+          hasCity: Boolean(connectionParams.cityName),
+          hasToken: Boolean(connectionParams.token),
+          cityName: connectionParams.cityName,
+          location: location // Log the full location prop
+      });
 
-        return () => {
-            if (connectionParams.cityName) {
-                webSocket.unsubscribe(connectionParams.cityName, connectionParams);
-            }
-        };
-    }, [connectionParams, webSocket, handleMessage, handleError]);
+      if (connectionParams.cityName && connectionParams.token) {
+          logger.debug('Initiating WebSocket connection', {
+              cityName: connectionParams.cityName,
+              countryCode: connectionParams.countryCode
+          });
+
+          webSocket.connect({
+              ...connectionParams,
+              onMessage: handleMessage,
+              onError: handleError
+          });
+          setIsConnected(true);
+      }
+
+      return () => {
+          if (connectionParams.cityName) {
+              logger.debug('Cleaning up WebSocket connection', {
+                  cityName: connectionParams.cityName
+              });
+              webSocket.unsubscribe(connectionParams.cityName, connectionParams);
+          }
+      };
+  }, [connectionParams, webSocket, handleMessage, handleError, logger, location]);
 
     // Handle refresh button click
     const handleRefresh = useCallback(() => {
