@@ -15,6 +15,7 @@ import { PasswordResetConfirm } from "./components/PasswordResetConfirm";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LocationsProvider } from "./contexts/LocationsContext";
 import { LDProvider } from "./contexts/LaunchDarklyContext";
+import { WebSocketProvider } from './contexts/WebSocketContext';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, isInitialized } = useAuth();
@@ -108,24 +109,26 @@ export const App = () => {
   const [authReady, setAuthReady] = useState(false);
 
   return (
-    <LDProvider 
-      onReady={() => {
-        console.log('LaunchDarkly Ready');
-        setLdReady(true);
-      }}
-    >
-      <BrowserRouter>
-        <AuthProvider 
+      <LDProvider
           onReady={() => {
-            console.log('Auth Provider Ready');
-            setAuthReady(true);
+              console.log('LaunchDarkly Ready');
+              setLdReady(true);
           }}
-        >
-          <LocationsProvider>
-            <AppContent ldReady={ldReady} authReady={authReady} />
-          </LocationsProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </LDProvider>
+      >
+          <BrowserRouter>
+              <AuthProvider
+                  onReady={() => {
+                      console.log('Auth Provider Ready');
+                      setAuthReady(true);
+                  }}
+              >
+                  <WebSocketProvider>
+                      <LocationsProvider>
+                          <AppContent ldReady={ldReady} authReady={authReady} />
+                      </LocationsProvider>
+                  </WebSocketProvider>
+              </AuthProvider>
+          </BrowserRouter>
+      </LDProvider>
   );
 };
