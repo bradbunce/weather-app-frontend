@@ -19,12 +19,13 @@ class WebSocketService {
     connect(params) {
         const { token, cityName, countryCode, onMessage, onError } = params;
         
+        // Validate input parameters
         if (!cityName) {
             this.logger.warn('Attempted to connect with null/undefined cityName', {
                 params,
                 stack: new Error().stack
             });
-            return;
+            return null;
         }
 
         if (!token) {
@@ -32,17 +33,23 @@ class WebSocketService {
                 cityName,
                 stack: new Error().stack
             });
-            return;
+            return null;
         }
         
-        if (this.connections.has(cityName)) {
-            this.logger.debug('WebSocket connection already exists', { 
-                cityName,
-                existingConnectionState: this.connections.get(cityName).readyState
-            });
-            
-            // Return the existing connection instead of creating a new one
-            return this.connections.get(cityName);
+        // Check for existing connection
+        const existingConnection = this.connections.get(cityName);
+        if (existingConnection) {
+            // Check if the existing connection is still valid
+            if (existingConnection.readyState === WebSocket.OPEN) {
+                this.logger.debug('Reusing existing WebSocket connection', { 
+                    cityName,
+                    existingConnectionState: existingConnection.readyState
+                });
+                return existingConnection;
+            } else {
+                // Remove stale connection
+                this.connections.delete(cityName);
+            }
         }
 
         try {
@@ -112,6 +119,7 @@ class WebSocketService {
                 stack: error.stack
             });
             onError?.('Failed to establish connection');
+            return null;
         }
     }
 
@@ -229,8 +237,10 @@ class WebSocketService {
         });
 
         // Send logout message through any open connection
-        const anyConnection = Array.from(this.connections.values())[0];
-        if (anyConnection?.readyState === WebSocket.OPEN) {
+        const connections = Array.from(this.connections.values());
+        const anyConnection = connections.find(conn => conn.readyState === WebSocket.OPEN);
+        
+        if (anyConnection) {
             try {
                 anyConnection.send(JSON.stringify({
                     action: 'logout',
@@ -256,6 +266,7 @@ class WebSocketService {
             }
         }
 
+        // Ensure connections are cleared
         this.connections.clear();
         this.logger.info('WebSocket cleanup completed');
     }
@@ -291,6 +302,7 @@ export function WebSocketProvider({ children }) {
             logger.info('Cleaning up WebSocket connections on unmount/user null');
             webSocketService.cleanup(user?.token);
         }
+        // Note: The effect depends on user, but we safely handle null/undefined
     }, [user, webSocketService, logger]);
 
     return (
