@@ -227,16 +227,28 @@ export function WebSocketProvider({ children }) {
 
     const webSocketService = useMemo(() => new WebSocketService(logger), [logger]);
 
-    // Cleanup on logout
+    // Listen for logout events
     useEffect(() => {
-        logger.debug('WebSocketProvider auth state changed', {
-            hasUser: Boolean(user),
-            connectionCount: webSocketService.connections.size,
-            activeConnections: Array.from(webSocketService.connections.keys())
-        });
+        const handleLogoutStarted = async (event) => {
+            const token = event.detail?.token;
+            logger.info('Starting WebSocket cleanup on logout', {
+                connectionCount: webSocketService.connections.size,
+                activeConnections: Array.from(webSocketService.connections.keys())
+            });
+            await webSocketService.cleanup(token);
+        };
 
+        window.addEventListener('auth-logout-started', handleLogoutStarted);
+        
+        return () => {
+            window.removeEventListener('auth-logout-started', handleLogoutStarted);
+        };
+    }, [webSocketService, logger]);
+
+    // Cleanup on unmount or when user is null
+    useEffect(() => {
         if (!user) {
-            logger.info('Cleaning up WebSocket connections on logout/unmount');
+            logger.info('Cleaning up WebSocket connections on unmount/user null');
             webSocketService.cleanup(user?.token);
         }
     }, [user, webSocketService, logger]);

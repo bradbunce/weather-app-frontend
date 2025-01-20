@@ -10,7 +10,6 @@ import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from "axios";
 import { useLogger } from "../utils/logger";
 import { createLDContexts } from "../config/launchDarkly";
-import { useWebSocketCleanup } from './WebSocketContext';
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 const TOKEN_STORAGE_KEY = "authToken";
@@ -29,7 +28,6 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
   const [loginCallbacks] = useState({
     onLoginSuccess: null
   });
-  const cleanup = useWebSocketCleanup();
   
   // Format token based on API needs - wrapped in useCallback
   const formatTokenForApi = useCallback((token, needsBearer = true) => {
@@ -275,11 +273,13 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
     }
   };
 
-  const logout = useCallback(async () => {  // Make logout a useCallback
+  const logout = useCallback(async () => {
     logger.info("Initiating logout process");
     try {
-        // Use the cleanup function from the component level
-        await cleanup(authState.user?.token);
+        // Dispatch a custom event for WebSocket cleanup
+        window.dispatchEvent(new CustomEvent('auth-logout-started', {
+            detail: { token: authState.user?.token }
+        }));
 
         const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
         if (currentToken) {
@@ -317,8 +317,7 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
         delete axios.defaults.headers.common["Authorization"];
         logger.info("Logout complete");
     }
-}, [cleanup, authState.user, logger, updateAuthState, formatTokenForApi]);  // Add dependencies
-
+}, [authState.user, logger, updateAuthState, formatTokenForApi]);
 
   const refreshToken = async () => {
     logger.debug("Attempting token refresh");
