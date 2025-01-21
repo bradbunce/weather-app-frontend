@@ -13,14 +13,20 @@ const WebSocketContext = createContext(null);
 // WebSocket Service class
 class WebSocketService {
     constructor(logger) {
-        this.connections = new Map(); // connectionId -> WebSocket
-        this.connectionQueue = new Set(); // Track pending connections
+        this.connections = new Map(); // connectionId -> { ws: WebSocket, handlers: Map<cityName, handler> }
+        this.connectionQueue = new Set();
         this.logger = logger;
         this.isConnecting = false;
     }
 
-    async connect(params) {
+    connect(params) {
         const { token, cityName, countryCode, onMessage, onError } = params;
+
+        // Store the handler for this city
+        if (!this.messageHandlers) {
+            this.messageHandlers = new Map();
+        }
+        this.messageHandlers.set(cityName, { onMessage, onError });
         
         // Track connection attempt for debugging
         this.logger.debug('Connection attempt', { 
@@ -133,29 +139,25 @@ class WebSocketService {
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    
+                    const augmentedData = {
+                        ...data,
+                        connectionCity: cityName
+                    };
+        
                     this.logger.debug('Raw WebSocket message received', {
                         type: data.type,
                         connectionCity: cityName,
                         rawData: event.data
                     });
-            
-                    if (data.type === 'error') {
-                        this.logger.error('WebSocket message error', {
-                            error: data.message,
-                            cityName
-                        });
-                        onError?.(data.message);
-                        return;
+        
+                    // Call all registered handlers
+                    if (this.messageHandlers) {
+                        for (const [handlerCity, handlers] of this.messageHandlers.entries()) {
+                            if (handlerCity === cityName) {
+                                handlers.onMessage?.(augmentedData);
+                            }
+                        }
                     }
-            
-                    // Add the connection's cityName to the message data
-                    const augmentedData = {
-                        ...data,
-                        connectionCity: cityName  // Add this line
-                    };
-            
-                    onMessage?.(augmentedData);
                 } catch (err) {
                     this.logger.error('Error processing message', {
                         error: err.message,
