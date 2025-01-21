@@ -48,17 +48,24 @@ class WebSocketService {
                         const data = JSON.parse(event.data);
                         
                         // Extract city name from the message data
-                        const messageCityName = data.data?.[0]?.name;
+                        const weatherData = data.data?.[0];
+                        const messageCityName = weatherData?.name;
                         
                         this.logger.debug('WebSocket message received', {
                             messageType: data.type,
-                            cityName: messageCityName
+                            cityName: messageCityName,
+                            rawData: JSON.stringify(data.data)
                         });
-
+                
                         // Find the handler for this city
-                        const cityHandler = this.messageHandlers.get(messageCityName);
-                        if (cityHandler) {
-                            cityHandler.onMessage(data);
+                        if (messageCityName) {
+                            const cityHandler = this.messageHandlers.get(messageCityName);
+                            if (cityHandler) {
+                                cityHandler.onMessage({
+                                    ...data,
+                                    connectionCity: messageCityName
+                                });
+                            }
                         }
                     } catch (err) {
                         this.logger.error('Error processing message', {
