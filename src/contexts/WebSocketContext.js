@@ -14,11 +14,29 @@ const WebSocketContext = createContext(null);
 class WebSocketService {
     constructor(logger) {
         this.connections = new Map(); // connectionId -> WebSocket
+        this.connectionQueue = new Set(); // Track pending connections
         this.logger = logger;
+        this.isConnecting = false;
     }
 
-    connect(params) {
+    async     connect(params) {
         const { token, cityName, countryCode, onMessage, onError } = params;
+        
+        // Track connection attempt for debugging
+        this.logger.debug('Connection attempt', { 
+            hasToken: !!token,
+            hasCityName: !!cityName,
+            cityName
+        });
+        
+        // Add to connection queue if already connecting
+        if (this.isConnecting) {
+            this.connectionQueue.add(cityName);
+            this.logger.debug('Connection queued', { cityName });
+            return null;
+        }
+        
+        this.isConnecting = true;
         
         // Enhance token validation
         if (!token || token.trim() === '') {
@@ -287,9 +305,14 @@ class WebSocketService {
             }
         });
 
+        // Clear both connections and queue
         this.connections.clear();
+        this.connectionQueue.clear();
+        this.isConnecting = false;
+        
         this.logger.info('WebSocket cleanup completed', {
-            remainingConnections: Array.from(this.connections.keys())
+            remainingConnections: Array.from(this.connections.keys()),
+            queueLength: this.connectionQueue.size
         });
     }
 }
@@ -305,8 +328,12 @@ export function WebSocketProvider({ children }) {
     useEffect(() => {
         if (user?.token) {
             lastValidToken.current = user.token;
+        } else {
+            // If user becomes null, ensure we cleanup immediately
+            webSocketService.cleanup(lastValidToken.current);
+            lastValidToken.current = null;
         }
-    }, [user]);
+    }, [user, webSocketService]);
 
     // Handle logout event
     useEffect(() => {
