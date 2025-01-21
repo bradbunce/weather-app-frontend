@@ -19,17 +19,19 @@ class WebSocketService {
         this.isConnecting = false;
     }
 
-    async     connect(params) {
+    async connect(params) {
         const { token, cityName, countryCode, onMessage, onError } = params;
         
         // Track connection attempt for debugging
         this.logger.debug('Connection attempt', { 
             hasToken: !!token,
             hasCityName: !!cityName,
-            cityName
+            cityName,
+            isConnecting: this.isConnecting,
+            queueSize: this.connectionQueue.size
         });
-        
-        // Add to connection queue if already connecting
+
+        // If already connecting, queue this request
         if (this.isConnecting) {
             this.connectionQueue.add(cityName);
             this.logger.debug('Connection queued', { cityName });
@@ -98,19 +100,19 @@ class WebSocketService {
                     queueSize: this.connectionQueue.size
                 });
 
-                // After connection is established and subscription is sent,
-                // request initial weather data
+                // Subscribe and request initial data
                 if (countryCode) {
-                    this.subscribe(ws, { cityName, countryCode, token });
+                    // First subscribe
+                    const subSuccess = this.subscribe(ws, { cityName, countryCode, token });
                     
-                    // Add a small delay before requesting weather to ensure subscription is processed
-                    setTimeout(() => {
+                    if (subSuccess) {
+                        // Then request initial data
                         this.logger.debug('Requesting initial weather data', {
                             cityName,
                             connectionState: ws.readyState
                         });
                         this.refreshWeather(cityName, { countryCode, token });
-                    }, 500);
+                    }
                 }
                 
                 // Process next item in queue if any
@@ -126,23 +128,14 @@ class WebSocketService {
                         onError
                     });
                 }
-                
-                // Subscribe to weather updates
-                if (countryCode) {
-                    this.subscribe(ws, { cityName, countryCode, token });
-                }
             };
 
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    // Use the actual message's city name, not the connection's
-                    const messageCityName = data.cityName || data.locationName || cityName;
-                    
                     this.logger.debug('Raw WebSocket message received', {
                         type: data.type,
                         connectionCity: cityName,
-                        messageCityName,
                         rawData: event.data
                     });
 

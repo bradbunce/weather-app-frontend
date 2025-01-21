@@ -163,7 +163,6 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             });
         }
     }, [connectionParams, webSocket, handleMessage, handleError, isAuthenticated]);
-
     const loadingMessage = isConnected ? "Loading weather data..." : "Connecting to server...";
 
     // Render weather details
