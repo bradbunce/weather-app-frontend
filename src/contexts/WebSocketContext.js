@@ -98,6 +98,21 @@ class WebSocketService {
                     queueSize: this.connectionQueue.size
                 });
 
+                // After connection is established and subscription is sent,
+                // request initial weather data
+                if (countryCode) {
+                    this.subscribe(ws, { cityName, countryCode, token });
+                    
+                    // Add a small delay before requesting weather to ensure subscription is processed
+                    setTimeout(() => {
+                        this.logger.debug('Requesting initial weather data', {
+                            cityName,
+                            connectionState: ws.readyState
+                        });
+                        this.refreshWeather(cityName, { countryCode, token });
+                    }, 500);
+                }
+                
                 // Process next item in queue if any
                 this.isConnecting = false;
                 const nextCity = Array.from(this.connectionQueue)[0];
@@ -203,16 +218,22 @@ class WebSocketService {
             this.logger.debug('Subscribing to location', {
                 cityName,
                 countryCode,
-                connectionState: ws.readyState
+                connectionState: ws.readyState,
+                connectionId: ws.url
             });
     
             try {
-                ws.send(JSON.stringify({
+                const subscribeMessage = {
                     action: 'subscribe',
                     locationName: cityName,
                     countryCode,
                     token
-                }));
+                };
+                this.logger.debug('Sending subscribe message', {
+                    cityName,
+                    message: subscribeMessage
+                });
+                ws.send(JSON.stringify(subscribeMessage));
                 return true;
             } catch (error) {
                 this.logger.error('Error subscribing', {

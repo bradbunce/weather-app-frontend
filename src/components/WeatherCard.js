@@ -22,11 +22,23 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
     }), [user?.token, location?.city_name, location?.country_code]);
 
     const handleMessage = useCallback((data) => {
+        logger.debug('Received WebSocket message', {
+            type: data.type,
+            cityName: connectionParams.cityName,
+            data: data
+        });
+
         if (data.type === "weatherUpdate" || data.type === "getWeather") {
             const locationData = Array.isArray(data.data)
                 ? data.data.find(d => d.name === connectionParams.cityName || 
                                     d.locationName === connectionParams.cityName)
                 : data.data;
+
+            logger.debug('Processing weather data', {
+                cityName: connectionParams.cityName,
+                foundLocation: !!locationData,
+                rawData: data.data
+            });
 
             if (locationData) {
                 const weatherData = locationData.weather || locationData;
