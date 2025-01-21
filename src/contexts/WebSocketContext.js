@@ -136,12 +136,21 @@ class WebSocketService {
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    this.logger.debug('Received WebSocket message', {
+                    // Use the actual message's city name, not the connection's
+                    const messageCityName = data.cityName || data.locationName || cityName;
+                    
+                    this.logger.debug('Raw WebSocket message received', {
                         type: data.type,
-                        cityName
+                        connectionCity: cityName,
+                        messageCityName,
+                        rawData: event.data
                     });
 
                     if (data.type === 'error') {
+                        this.logger.error('WebSocket message error', {
+                            error: data.message,
+                            cityName
+                        });
                         onError?.(data.message);
                         return;
                     }
@@ -150,7 +159,8 @@ class WebSocketService {
                 } catch (err) {
                     this.logger.error('Error processing message', {
                         error: err.message,
-                        cityName
+                        cityName,
+                        rawData: event.data
                     });
                     onError?.('Error processing weather data');
                 }
