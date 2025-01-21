@@ -19,20 +19,23 @@ class WebSocketService {
     connect(params) {
         const { token, cityName, countryCode, onMessage, onError } = params;
         
-        // Validate input parameters
-        if (!cityName) {
-            this.logger.warn('Attempted to connect with null/undefined cityName', {
-                params,
+        // Enhanced validation with more specific logging
+        if (!cityName || cityName.trim() === '') {
+            this.logger.error('Invalid connection attempt', {
+                reason: 'Null or empty cityName',
+                fullParams: params,
                 stack: new Error().stack
             });
+            onError?.('Invalid location name');
             return null;
         }
 
         if (!token) {
-            this.logger.warn('Attempted to connect without token', {
+            this.logger.error('Connection attempt without token', {
                 cityName,
                 stack: new Error().stack
             });
+            onError?.('Authentication required');
             return null;
         }
         
@@ -49,12 +52,19 @@ class WebSocketService {
             } else {
                 // Remove stale connection
                 this.connections.delete(cityName);
+                this.logger.warn('Removed stale WebSocket connection', { 
+                    cityName,
+                    previousState: existingConnection.readyState
+                });
             }
         }
 
         try {
             const websocketUrl = `${process.env.REACT_APP_WEBSOCKET_API}?token=${encodeURIComponent(token)}`;
             const ws = new WebSocket(websocketUrl);
+
+            // Store the city name for reference in error handling
+            ws.cityName = cityName;
 
             ws.onopen = () => {
                 // Only store the connection after it's successfully opened
@@ -104,10 +114,14 @@ class WebSocketService {
             };
 
             ws.onclose = () => {
+                const remainingConnections = Array.from(this.connections.keys())
+                    .filter(c => c !== cityName);
+                
                 this.logger.debug('WebSocket closed', { 
                     cityName,
-                    remainingConnections: Array.from(this.connections.keys()).filter(c => c !== cityName)
+                    remainingConnections
                 });
+                
                 this.connections.delete(cityName);
             };
 
@@ -236,39 +250,65 @@ class WebSocketService {
             activeConnections: Array.from(this.connections.keys())
         });
 
+        // Validate token
+        if (!token) {
+            this.logger.warn('Cleanup called with null/undefined token', {
+                connections: Array.from(this.connections.entries())
+            });
+        }
+
         // Send logout message through any open connection
-        const connections = Array.from(this.connections.values());
-        const anyConnection = connections.find(conn => conn.readyState === WebSocket.OPEN);
+        const connections = Array.from(this.connections.entries());
+        const openConnectionEntry = connections.find(([_, conn]) => 
+            conn && conn.readyState === WebSocket.OPEN
+        );
         
-        if (anyConnection) {
+        if (openConnectionEntry) {
             try {
-                anyConnection.send(JSON.stringify({
+                const [cityName, conn] = openConnectionEntry;
+                conn.send(JSON.stringify({
                     action: 'logout',
                     token
                 }));
-                this.logger.debug('Sent logout message successfully');
+                this.logger.debug('Sent logout message successfully', { cityName });
             } catch (error) {
                 this.logger.error('Error sending logout message', {
-                    error: error.message
+                    error: error.message,
+                    connections: connections.map(([city]) => city)
                 });
             }
+        } else {
+            this.logger.warn('No open connections found for logout', {
+                connectionDetails: connections.map(([city, conn]) => ({
+                    city, 
+                    readyState: conn ? conn.readyState : 'null connection'
+                }))
+            });
         }
 
         // Close all connections
-        for (const [cityName] of this.connections) {
-            try {
-                this.unsubscribe(cityName, { token });
-            } catch (error) {
-                this.logger.error('Error during cleanup', {
-                    error: error.message,
-                    cityName
-                });
+        const connectionsCopy = Array.from(this.connections.entries());
+        connectionsCopy.forEach(([cityName, conn]) => {
+            if (conn) {
+                try {
+                    this.unsubscribe(cityName, { token });
+                } catch (error) {
+                    this.logger.error('Error during cleanup', {
+                        error: error.message,
+                        cityName
+                    });
+                }
+            } else {
+                this.logger.warn('Encountered null connection during cleanup', { cityName });
+                this.connections.delete(cityName);
             }
-        }
+        });
 
-        // Ensure connections are cleared
+        // Force clear connections
         this.connections.clear();
-        this.logger.info('WebSocket cleanup completed');
+        this.logger.info('WebSocket cleanup completed', {
+            remainingConnections: Array.from(this.connections.keys())
+        });
     }
 }
 
