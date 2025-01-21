@@ -22,8 +22,8 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
     }), [user?.token, location?.city_name, location?.country_code]);
 
     const handleMessage = useCallback((data) => {
-        // First check if this message is for our city
-        if (data.connectionCity && data.connectionCity !== connectionParams.cityName) {
+        // First ensure this message is for this card
+        if (data.connectionCity !== connectionParams.cityName) {
             logger.debug('Ignoring message for different city', {
                 cardCity: connectionParams.cityName,
                 messageCity: data.connectionCity
@@ -31,14 +31,14 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             return;
         }
     
-        logger.debug('Received WebSocket message', {
+        logger.debug('Processing message for city', {
             type: data.type,
             cityName: connectionParams.cityName,
-            connectionCity: data.connectionCity,
             data: data
         });
     
         if (data.type === "weatherUpdate" || data.type === "getWeather") {
+            // Try to find our city's data in the array
             const locationData = Array.isArray(data.data)
                 ? data.data.find(d => d.name === connectionParams.cityName)
                 : data.data;

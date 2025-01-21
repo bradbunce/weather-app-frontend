@@ -133,12 +133,13 @@ class WebSocketService {
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
+                    
                     this.logger.debug('Raw WebSocket message received', {
                         type: data.type,
                         connectionCity: cityName,
                         rawData: event.data
                     });
-
+            
                     if (data.type === 'error') {
                         this.logger.error('WebSocket message error', {
                             error: data.message,
@@ -147,8 +148,14 @@ class WebSocketService {
                         onError?.(data.message);
                         return;
                     }
-
-                    onMessage?.(data);
+            
+                    // Add the connection's cityName to the message data
+                    const augmentedData = {
+                        ...data,
+                        connectionCity: cityName  // Add this line
+                    };
+            
+                    onMessage?.(augmentedData);
                 } catch (err) {
                     this.logger.error('Error processing message', {
                         error: err.message,
