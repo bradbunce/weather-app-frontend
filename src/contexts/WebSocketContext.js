@@ -2,7 +2,8 @@ import React, {
     createContext, 
     useContext,  
     useMemo, 
-    useEffect 
+    useEffect,
+    useRef
 } from 'react';
 import { useAuth } from './AuthContext';
 import { useLogger } from '../utils/logger';
@@ -19,23 +20,25 @@ class WebSocketService {
     connect(params) {
         const { token, cityName, countryCode, onMessage, onError } = params;
         
-        // Enhanced validation with more specific logging
-        if (!cityName || cityName.trim() === '') {
+        // Enhance token validation
+        if (!token || token.trim() === '') {
             this.logger.error('Invalid connection attempt', {
-                reason: 'Null or empty cityName',
-                fullParams: params,
-                stack: new Error().stack
-            });
-            onError?.('Invalid location name');
-            return null;
-        }
-
-        if (!token) {
-            this.logger.error('Connection attempt without token', {
+                reason: 'Missing or empty token',
                 cityName,
                 stack: new Error().stack
             });
             onError?.('Authentication required');
+            return null;
+        }
+        
+        // Enhanced location validation
+        if (!cityName || cityName.trim() === '') {
+            this.logger.error('Invalid connection attempt', {
+                reason: 'Missing or empty cityName',
+                token: 'present', // Don't log actual token
+                stack: new Error().stack
+            });
+            onError?.('Invalid location name');
             return null;
         }
         
@@ -250,61 +253,40 @@ class WebSocketService {
             activeConnections: Array.from(this.connections.keys())
         });
 
-        // Validate token
-        if (!token) {
-            this.logger.warn('Cleanup called with null/undefined token', {
-                connections: Array.from(this.connections.entries())
-            });
-        }
-
-        // Send logout message through any open connection
-        const connections = Array.from(this.connections.entries());
-        const openConnectionEntry = connections.find(([_, conn]) => 
-            conn && conn.readyState === WebSocket.OPEN
-        );
-        
-        if (openConnectionEntry) {
-            try {
-                const [cityName, conn] = openConnectionEntry;
-                conn.send(JSON.stringify({
-                    action: 'logout',
-                    token
-                }));
-                this.logger.debug('Sent logout message successfully', { cityName });
-            } catch (error) {
-                this.logger.error('Error sending logout message', {
-                    error: error.message,
-                    connections: connections.map(([city]) => city)
-                });
-            }
-        } else {
-            this.logger.warn('No open connections found for logout', {
-                connectionDetails: connections.map(([city, conn]) => ({
-                    city, 
-                    readyState: conn ? conn.readyState : 'null connection'
-                }))
-            });
-        }
-
-        // Close all connections
+        // Close all connections even if token is missing
         const connectionsCopy = Array.from(this.connections.entries());
+        
+        // First, attempt graceful disconnects for connections with valid tokens
+        if (token) {
+            connectionsCopy.forEach(([cityName, conn]) => {
+                if (conn && conn.readyState === WebSocket.OPEN) {
+                    try {
+                        this.unsubscribe(cityName, { token });
+                    } catch (error) {
+                        this.logger.error('Error during graceful disconnect', {
+                            error: error.message,
+                            cityName
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Then force close any remaining connections
         connectionsCopy.forEach(([cityName, conn]) => {
             if (conn) {
                 try {
-                    this.unsubscribe(cityName, { token });
+                    conn.close(1000, 'Cleanup initiated');
                 } catch (error) {
-                    this.logger.error('Error during cleanup', {
+                    this.logger.error('Error force closing connection', {
                         error: error.message,
                         cityName
                     });
                 }
-            } else {
-                this.logger.warn('Encountered null connection during cleanup', { cityName });
                 this.connections.delete(cityName);
             }
         });
 
-        // Force clear connections
         this.connections.clear();
         this.logger.info('WebSocket cleanup completed', {
             remainingConnections: Array.from(this.connections.keys())
@@ -315,35 +297,41 @@ class WebSocketService {
 export function WebSocketProvider({ children }) {
     const { user } = useAuth();
     const logger = useLogger();
-
     const webSocketService = useMemo(() => new WebSocketService(logger), [logger]);
+    
+    // Store the last valid token for cleanup
+    const lastValidToken = useRef(user?.token);
+    
+    useEffect(() => {
+        if (user?.token) {
+            lastValidToken.current = user.token;
+        }
+    }, [user]);
 
-    // Listen for logout events
+    // Handle logout event
     useEffect(() => {
         const handleLogoutStarted = async (event) => {
-            const token = event.detail?.token;
+            const token = event.detail?.token || lastValidToken.current;
             logger.info('Starting WebSocket cleanup on logout', {
-                connectionCount: webSocketService.connections.size,
-                activeConnections: Array.from(webSocketService.connections.keys())
+                hasToken: !!token,
+                connectionCount: webSocketService.connections.size
             });
             await webSocketService.cleanup(token);
         };
 
         window.addEventListener('auth-logout-started', handleLogoutStarted);
-        
         return () => {
             window.removeEventListener('auth-logout-started', handleLogoutStarted);
         };
     }, [webSocketService, logger]);
 
-    // Cleanup on unmount or when user is null
+    // Handle unmount and user state changes
     useEffect(() => {
-        if (!user) {
-            logger.info('Cleaning up WebSocket connections on unmount/user null');
-            webSocketService.cleanup(user?.token);
-        }
-        // Note: The effect depends on user, but we safely handle null/undefined
-    }, [user, webSocketService, logger]);
+        return () => {
+            logger.info('Cleaning up WebSocket connections on unmount');
+            webSocketService.cleanup(lastValidToken.current);
+        };
+    }, [webSocketService, logger]);
 
     return (
         <WebSocketContext.Provider value={webSocketService}>
