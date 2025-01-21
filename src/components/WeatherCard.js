@@ -5,6 +5,7 @@ import { useWebSocket } from "../contexts/WebSocketContext";
 import { useLogger } from "../utils/logger";
 
 export const WeatherCard = React.memo(({ location, onRemove }) => {
+    const componentId = useMemo(() => `weather-${location.location_id}`, [location.location_id]);
     const { user, isAuthenticated } = useAuth();
     const webSocket = useWebSocket();
     const logger = useLogger();
@@ -25,33 +26,37 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
         // First ensure this message is for this card
         if (data.connectionCity !== connectionParams.cityName) {
             logger.debug('Ignoring message for different city', {
+                cardId: componentId,
                 cardCity: connectionParams.cityName,
                 messageCity: data.connectionCity
             });
             return;
         }
-    
+
         logger.debug('Processing message for city', {
+            cardId: componentId,
             type: data.type,
             cityName: connectionParams.cityName,
             data: data
         });
-    
+
         if (data.type === "weatherUpdate" || data.type === "getWeather") {
             // Try to find our city's data in the array
             const locationData = Array.isArray(data.data)
                 ? data.data.find(d => d.name === connectionParams.cityName)
                 : data.data;
-    
+
             logger.debug('Processing weather data', {
+                cardId: componentId,
                 cityName: connectionParams.cityName,
                 foundLocation: !!locationData,
                 rawData: data.data
             });
-    
+
             if (locationData) {
                 const weatherData = locationData.weather || locationData;
                 logger.debug("Weather data updated", {
+                    cardId: componentId,
                     location: connectionParams.cityName,
                     temperature: weatherData.temperature,
                     condition: weatherData.condition,
@@ -65,23 +70,25 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                 setLoading(false);
             }
         }
-    }, [connectionParams.cityName, logger]);
+    }, [connectionParams.cityName, logger, componentId]);
 
     const handleError = useCallback((errorMessage) => {
         logger.error("WeatherCard error", {
+            cardId: componentId,
             message: errorMessage,
             location: connectionParams.cityName,
         });
         setError(errorMessage);
         setLoading(false);
         setIsConnected(false);
-    }, [connectionParams.cityName, logger]);
+    }, [connectionParams.cityName, logger, componentId]);
 
     // Initialize WebSocket connection
     useEffect(() => {
         // Only attempt connection if we're authenticated and have necessary params
         if (!isAuthenticated || !user?.token) {
             logger.debug('Skipping WebSocket connection - not authenticated', {
+                cardId: componentId,
                 cityName: connectionParams.cityName,
                 isAuthenticated,
                 hasToken: !!user?.token
@@ -92,6 +99,7 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
 
         if (!connectionParams.cityName) {
             logger.debug('Skipping WebSocket connection - no city name', {
+                cardId: componentId,
                 params: connectionParams
             });
             setIsConnected(false);
@@ -100,6 +108,7 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
 
         if (!isConnected) {
             logger.debug('Initiating WebSocket connection', {
+                cardId: componentId,
                 cityName: connectionParams.cityName,
                 countryCode: connectionParams.countryCode,
                 isAuthenticated,
@@ -117,6 +126,7 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                 setIsConnected(true);
             } else {
                 logger.debug('Connection queued or failed', {
+                    cardId: componentId,
                     cityName: connectionParams.cityName
                 });
             }
@@ -126,6 +136,7 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
         return () => {
             if (connectionParams.cityName && isConnected) {
                 logger.debug('Cleaning up WebSocket connection', {
+                    cardId: componentId,
                     cityName: connectionParams.cityName,
                     isAuthenticated,
                     hasToken: !!user?.token
@@ -142,7 +153,8 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
         logger, 
         isConnected, 
         isAuthenticated, 
-        user?.token
+        user?.token,
+        componentId
     ]);
 
     // Handle auth state changes
@@ -154,7 +166,6 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
         }
     }, [isAuthenticated]);
 
-    // Rest of the component stays the same...
     const handleRefresh = useCallback(() => {
         if (!isAuthenticated) {
             handleError("Not authenticated");
@@ -171,7 +182,14 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                 onError: handleError
             });
         }
-    }, [connectionParams, webSocket, handleMessage, handleError, isAuthenticated]);
+    }, [
+        connectionParams, 
+        webSocket, 
+        handleMessage, 
+        handleError, 
+        isAuthenticated
+    ]);
+
     const loadingMessage = isConnected ? "Loading weather data..." : "Connecting to server...";
 
     // Render weather details
@@ -248,4 +266,4 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             </Card.Body>
         </Card>
     );
-});
+}, (prevProps, nextProps) => prevProps.location.location_id === nextProps.location.location_id);
