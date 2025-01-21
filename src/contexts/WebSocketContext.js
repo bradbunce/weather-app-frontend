@@ -94,8 +94,23 @@ class WebSocketService {
                 this.logger.info('WebSocket connected', { 
                     cityName,
                     connectionCount: this.connections.size,
-                    activeConnections: Array.from(this.connections.keys())
+                    activeConnections: Array.from(this.connections.keys()),
+                    queueSize: this.connectionQueue.size
                 });
+
+                // Process next item in queue if any
+                this.isConnecting = false;
+                const nextCity = Array.from(this.connectionQueue)[0];
+                if (nextCity) {
+                    this.connectionQueue.delete(nextCity);
+                    this.connect({
+                        token,
+                        cityName: nextCity,
+                        countryCode,
+                        onMessage,
+                        onError
+                    });
+                }
                 
                 // Subscribe to weather updates
                 if (countryCode) {
@@ -151,9 +166,24 @@ class WebSocketService {
             this.logger.error('Failed to establish connection', {
                 error: error.message,
                 cityName,
-                stack: error.stack
+                stack: error.stack,
+                queueSize: this.connectionQueue.size
             });
             onError?.('Failed to establish connection');
+            
+            // Reset connecting state and process next in queue
+            this.isConnecting = false;
+            const nextCity = Array.from(this.connectionQueue)[0];
+            if (nextCity) {
+                this.connectionQueue.delete(nextCity);
+                this.connect({
+                    token,
+                    cityName: nextCity,
+                    countryCode,
+                    onMessage,
+                    onError
+                });
+            }
             return null;
         }
     }

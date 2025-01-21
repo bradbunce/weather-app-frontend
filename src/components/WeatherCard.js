@@ -65,6 +65,7 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                 isAuthenticated,
                 hasToken: !!user?.token
             });
+            setIsConnected(false);
             return;
         }
 
@@ -72,6 +73,7 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             logger.debug('Skipping WebSocket connection - no city name', {
                 params: connectionParams
             });
+            setIsConnected(false);
             return;
         }
 
@@ -83,12 +85,20 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                 hasToken: !!user?.token
             });
 
-            webSocket.connect({
+            const connection = webSocket.connect({
                 ...connectionParams,
                 onMessage: handleMessage,
                 onError: handleError
             });
-            setIsConnected(true);
+            
+            // Only set connected if we got a real connection back
+            if (connection) {
+                setIsConnected(true);
+            } else {
+                logger.debug('Connection queued or failed', {
+                    cityName: connectionParams.cityName
+                });
+            }
         }
 
         // Cleanup function
