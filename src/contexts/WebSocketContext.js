@@ -106,16 +106,18 @@ class WebSocketService {
         const { cityName, countryCode, token } = params;
         
         if (!cityName || ws.readyState !== WebSocket.OPEN) return false;
-
+    
         try {
             this.logger.debug('Subscribing to location', { cityName });
+            // First subscribe message records the connection and city in DynamoDB
             ws.send(JSON.stringify({
                 action: 'subscribe',
                 locationName: cityName,
                 countryCode,
-                token
+                token,
+                isInitial: true  // Tell backend this is a new subscription
             }));
-
+    
             // Request initial weather data
             this.refreshWeather(cityName, { countryCode, token });
             return true;
@@ -169,22 +171,43 @@ class WebSocketService {
 
     cleanup(token) {
         this.logger.info('Starting WebSocket cleanup');
-
+    
         if (this.ws && token) {
-            // Unsubscribe all cities
-            for (const [cityName] of this.messageHandlers) {
-                this.unsubscribe(cityName, { token });
-            }
-
-            try {
-                this.ws.close(1000, 'Cleanup initiated');
-            } catch (error) {
-                this.logger.error('Error closing WebSocket', {
-                    error: error.message
-                });
-            }
+            // Get all registered locations
+            const locations = Array.from(this.messageHandlers.keys());
+            this.logger.debug('Cleaning up locations', { locations });
+    
+            // Send unsubscribe for each location
+            locations.forEach(cityName => {
+                try {
+                    if (this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send(JSON.stringify({
+                            action: 'unsubscribe',
+                            locationName: cityName,
+                            token,
+                            isCleanup: true  // Tell backend this is final cleanup
+                        }));
+                    }
+                } catch (error) {
+                    this.logger.error('Error unsubscribing location during cleanup', {
+                        error: error.message,
+                        cityName
+                    });
+                }
+            });
+    
+            // Wait a moment for messages to be processed
+            setTimeout(() => {
+                try {
+                    this.ws.close(1000, 'Cleanup initiated');
+                } catch (error) {
+                    this.logger.error('Error closing WebSocket', {
+                        error: error.message
+                    });
+                }
+            }, 500);
         }
-
+    
         this.ws = null;
         this.messageHandlers.clear();
         
