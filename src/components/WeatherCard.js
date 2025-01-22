@@ -20,7 +20,8 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
         token: user?.token,
         cityName: location?.city_name,
         countryCode: location?.country_code,
-    }), [user?.token, location?.city_name, location?.country_code]);
+        locationId: location?.location_id
+    }), [user?.token, location?.city_name, location?.country_code, location?.location_id]);
 
     const handleMessage = useCallback((data) => {
         // First ensure this message is for this card
@@ -85,11 +86,11 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
 
     // Initialize WebSocket connection
     useEffect(() => {
-        // Only attempt connection if we're authenticated and have necessary params
         if (!isAuthenticated || !user?.token) {
             logger.debug('Skipping WebSocket connection - not authenticated', {
                 cardId: componentId,
                 cityName: connectionParams.cityName,
+                locationId: connectionParams.locationId,
                 isAuthenticated,
                 hasToken: !!user?.token
             });
@@ -97,11 +98,10 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             return;
         }
     
-        if (!connectionParams.cityName || !location.location_id) {
+        if (!connectionParams.cityName || !connectionParams.locationId) {
             logger.debug('Skipping WebSocket connection - missing required params', {
                 cardId: componentId,
-                params: connectionParams,
-                locationId: location.location_id
+                params: connectionParams
             });
             setIsConnected(false);
             return;
@@ -111,56 +111,48 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             logger.debug('Initiating WebSocket connection', {
                 cardId: componentId,
                 cityName: connectionParams.cityName,
+                locationId: connectionParams.locationId,
                 countryCode: connectionParams.countryCode,
-                locationId: location.location_id,
                 isAuthenticated,
                 hasToken: !!user?.token
             });
     
             const connection = webSocket.connect({
                 ...connectionParams,
-                locationId: location.location_id,
                 onMessage: handleMessage,
                 onError: handleError
             });
             
             if (connection) {
                 setIsConnected(true);
-            } else {
-                logger.debug('Connection queued or failed', {
-                    cardId: componentId,
-                    cityName: connectionParams.cityName,
-                    locationId: location.location_id
-                });
             }
         }
-
+    
         // Cleanup function
-    return () => {
-        if (connectionParams.cityName && isConnected) {
-            logger.debug('Cleaning up WebSocket connection', {
-                cardId: componentId,
-                cityName: connectionParams.cityName,
-                locationId: location.location_id,
-                isAuthenticated,
-                hasToken: !!user?.token
-            });
-            webSocket.unsubscribe(location.location_id, connectionParams);
-            setIsConnected(false);
-        }
-    };
-}, [
-    connectionParams, 
-    webSocket, 
-    handleMessage, 
-    handleError, 
-    logger, 
-    isConnected, 
-    isAuthenticated, 
-    user?.token,
-    componentId,
-    location.location_id
-]);
+        return () => {
+            if (connectionParams.locationId && isConnected) {
+                logger.debug('Cleaning up WebSocket connection', {
+                    cardId: componentId,
+                    cityName: connectionParams.cityName,
+                    locationId: connectionParams.locationId,
+                    isAuthenticated,
+                    hasToken: !!user?.token
+                });
+                webSocket.unsubscribe(connectionParams.locationId, connectionParams);
+                setIsConnected(false);
+            }
+        };
+    }, [
+        connectionParams, 
+        webSocket, 
+        handleMessage, 
+        handleError, 
+        logger, 
+        isConnected, 
+        isAuthenticated, 
+        user?.token,
+        componentId
+    ]);
 
     // Handle auth state changes
     useEffect(() => {
