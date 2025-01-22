@@ -16,7 +16,7 @@ class WebSocketService {
   }
 
   connect(params) {
-    const { token, userId } = params;
+    const { token } = params;
 
     // Use the numeric userId from the token
     const tokenParts = token.split(".");
@@ -55,7 +55,7 @@ class WebSocketService {
         this.ws = new WebSocket(websocketUrl);
 
         this.ws.onopen = () => {
-          this.logger.info("WebSocket connected", { userId: stringUserId });
+          this.logger.info("WebSocket connected", { userId: numericUserId });
           this.reconnectAttempts = 0;
 
           // Subscribe all existing locations
@@ -120,7 +120,7 @@ class WebSocketService {
           this.logger.error("WebSocket error", {
             error: error.message || "Unknown WebSocket error",
             errorObject: error,
-            userId: stringUserId,
+            userId: numericUserId,
           });
 
           // More detailed error handling
@@ -136,7 +136,7 @@ class WebSocketService {
 
         this.ws.onclose = (event) => {
           this.logger.debug("WebSocket closed", {
-            userId: stringUserId,
+            userId: numericUserId,
             code: event.code,
             reason: event.reason,
           });
@@ -145,7 +145,7 @@ class WebSocketService {
       } catch (error) {
         this.logger.error("Failed to establish WebSocket connection", {
           error: error.message,
-          userId: stringUserId,
+          userId: numericUserId,
         });
         this.handleConnectionError();
         return null;
@@ -153,7 +153,7 @@ class WebSocketService {
     }
 
     return this.ws;
-  }
+}
 
   handleConnectionError() {
     // Notify all handlers of the error
@@ -182,11 +182,12 @@ class WebSocketService {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = setTimeout(() => {
         if (this.userId) {
-          this.connect({ token: this.getStoredToken(), userId: this.userId });
+          const token = localStorage.getItem("authToken");  // Use consistent storage key
+          this.connect({ token, userId: this.userId });
         }
       }, delay);
     }
-  }
+}
 
   getStoredToken() {
     // Implement based on your auth storage mechanism
@@ -282,34 +283,33 @@ class WebSocketService {
 }
 
 export function WebSocketProvider({ children }) {
-  const { user } = useAuth();
-  const logger = useLogger();
-  const webSocketService = useMemo(
-    () => new WebSocketService(logger),
-    [logger]
-  );
-
-  useEffect(() => {
-    if (user?.token && user?.username) {
-      webSocketService.connect({
-        token: user.token,
-        userId: user.username,
-      });
-    } else {
-      webSocketService.cleanup();
-    }
-
-    return () => {
-      webSocketService.cleanup();
-    };
-  }, [user, webSocketService]);
-
-  return (
-    <WebSocketContext.Provider value={webSocketService}>
-      {children}
-    </WebSocketContext.Provider>
-  );
-}
+    const { user } = useAuth();
+    const logger = useLogger();
+    const webSocketService = useMemo(
+      () => new WebSocketService(logger),
+      [logger]
+    );
+  
+    useEffect(() => {
+        if (user?.token && user?.id) {
+          webSocketService.connect({
+            token: user.token
+          });
+        } else {
+          webSocketService.cleanup();
+        }
+    
+        return () => {
+          webSocketService.cleanup();
+        };
+    }, [user, webSocketService]);
+  
+    return (
+      <WebSocketContext.Provider value={webSocketService}>
+        {children}
+      </WebSocketContext.Provider>
+    );
+  }
 
 export function useWebSocket() {
   const context = useContext(WebSocketContext);
