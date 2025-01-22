@@ -49,68 +49,49 @@ class WebSocketService {
 
                 this.ws.onmessage = (event) => {
                     try {
-                        const parsedEvent = JSON.parse(event.data);
+                        const message = JSON.parse(event.data);
                         
-                        // Log the complete message first
-                        this.logger.debug('Raw message structure:', {
-                            fullMessage: parsedEvent
+                        this.logger.debug('Processing message', {
+                            type: message.type,
+                            dataCount: message.data?.length
                         });
                 
-                        // Extract data array from the message
-                        const items = parsedEvent.data || [];
-                        
-                        this.logger.debug('Processing WebSocket message', {
-                            messageType: parsedEvent.type,
-                            itemCount: items.length,
-                            firstItem: items[0] ? JSON.stringify(items[0], null, 2) : 'no items'
-                        });
-                
-                        // Process each item
+                        // Process each item in the data array
+                        const items = message.data || [];
                         for (const item of items) {
-                            // Log the complete structure of each item
-                            this.logger.debug('Weather item structure', {
-                                completeItem: JSON.stringify(item, null, 2),
-                                keys: Object.keys(item)
-                            });
-                
-                            // Extract weather data - it might be nested under item.data
-                            const weatherInfo = item.data || item;
-                            const locationId = weatherInfo.location_id;
-                            
-                            this.logger.debug('Examining weather item', {
-                                locationId,
-                                weatherInfo: JSON.stringify(weatherInfo, null, 2)
-                            });
-                
-                            if (!locationId) continue;
-                
-                            const handler = this.messageHandlers.get(locationId);
+                            const location_id = item.location_id;
+                            const handler = this.messageHandlers.get(location_id);
                             
                             if (handler) {
                                 this.logger.debug('Found handler for location', {
-                                    locationId,
+                                    location_id,
                                     cityName: handler.cityName
                                 });
                 
                                 handler.onMessage({
-                                    type: parsedEvent.type,
+                                    type: message.type,
                                     connectionCity: handler.cityName,
                                     data: {
-                                        temperature: weatherInfo.temperature,
-                                        condition: weatherInfo.condition,
-                                        humidity: weatherInfo.humidity,
-                                        windSpeed: weatherInfo.wind_speed,
-                                        feelsLike: weatherInfo.feels_like,
-                                        timestamp: weatherInfo.last_updated,
-                                        lastUpdated: weatherInfo.last_updated
+                                        temperature: item.temperature,
+                                        condition: item.condition,
+                                        humidity: item.humidity,
+                                        windSpeed: item.wind_speed,
+                                        feelsLike: item.feels_like,
+                                        lastUpdated: item.last_updated,
+                                        details: item.details
                                     }
+                                });
+                            } else {
+                                this.logger.debug('No handler for location', {
+                                    location_id,
+                                    availableHandlers: Array.from(this.messageHandlers.keys())
                                 });
                             }
                         }
                     } catch (err) {
                         this.logger.error('Error processing message', {
                             error: err.message,
-                            data: event.data
+                            rawData: event.data
                         });
                     }
                 };
