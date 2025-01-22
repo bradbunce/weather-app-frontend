@@ -51,44 +51,50 @@ class WebSocketService {
                     try {
                         const message = JSON.parse(event.data);
                         
-                        this.logger.debug('Processing message', {
+                        this.logger.debug('Processing WebSocket message', {
                             type: message.type,
-                            dataCount: message.data?.length
+                            dataCount: message.data?.length,
+                            firstItem: message.data?.[0]
                         });
                 
                         // Process each item in the data array
                         const items = message.data || [];
                         items.forEach((item) => {
-                            const locationId = item.id;
+                            // Match on 'id' which is what processWeatherData uses
+                            const locationId = parseInt(item.id);
                             const handler = this.messageHandlers.get(locationId);
                             
                             if (handler && item.weather) {
                                 this.logger.debug('Found handler for location', {
                                     locationId,
                                     cityName: handler.cityName,
-                                    weatherData: item.weather
+                                    data: item.weather
                                 });
                 
                                 handler.onMessage({
                                     type: message.type,
-                                    connectionCity: handler.cityName,
-                                    data: item.weather
-                                });
-                            } else if (item.error) {
-                                this.logger.error('Location reported error', {
-                                    locationId,
-                                    error: item.error
+                                    connectionCity: item.name,
+                                    data: {
+                                        temperature: item.weather.temperature,
+                                        condition: item.weather.condition,
+                                        humidity: item.weather.humidity,
+                                        windSpeed: item.weather.windSpeed,
+                                        feelsLike: item.weather.feelsLike,
+                                        lastUpdated: item.weather.lastUpdated
+                                    }
                                 });
                             } else {
-                                this.logger.debug('No handler or weather data', {
+                                this.logger.debug('Unable to handle weather data', {
+                                    itemId: item.id,
                                     locationId,
                                     hasHandler: !!handler,
-                                    hasWeather: !!item.weather
+                                    hasWeather: !!item.weather,
+                                    availableHandlers: Array.from(this.messageHandlers.keys())
                                 });
                             }
                         });
                     } catch (err) {
-                        this.logger.error('Error processing message', {
+                        this.logger.error('Error processing WebSocket message', {
                             error: err.message,
                             rawData: event.data
                         });
