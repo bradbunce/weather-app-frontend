@@ -18,8 +18,8 @@ class WebSocketService {
     connect(params) {
         const { token, userId } = params;
         
-        // Convert userId to string if it's not already
-        const stringUserId = String(userId);
+        // Convert userId to string and trim
+        const stringUserId = String(userId).trim();
         
         if (!token || !stringUserId) {
             this.logger.error('Missing required connection parameters', { 
@@ -30,21 +30,21 @@ class WebSocketService {
         }
     
         this.userId = stringUserId;
-
+    
         // Only create new connection if none exists or if it's closed
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             try {
-                const websocketUrl = `${process.env.REACT_APP_WEBSOCKET_API}?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(userId)}`;
+                const websocketUrl = `${process.env.REACT_APP_WEBSOCKET_API}?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(stringUserId)}`;
                 this.ws = new WebSocket(websocketUrl);
-
+    
                 this.ws.onopen = () => {
-                    this.logger.info('WebSocket connected', { userId });
+                    this.logger.info('WebSocket connected', { userId: stringUserId });
                     this.reconnectAttempts = 0;
                     
                     // Subscribe all existing locations
                     this.subscribeAllLocations(token);
                 };
-
+    
                 this.ws.onmessage = (event) => {
                     try {
                         const message = JSON.parse(event.data);
@@ -53,7 +53,7 @@ class WebSocketService {
                             type: message.type,
                             dataCount: message.data?.length
                         });
-
+    
                         if (Array.isArray(message.data)) {
                             message.data.forEach(locationData => {
                                 const id = parseInt(locationData.id);
@@ -81,27 +81,31 @@ class WebSocketService {
                         });
                     }
                 };
-
+    
                 this.ws.onerror = (error) => {
-                    this.logger.error('WebSocket error', { error: error.message, userId });
+                    this.logger.error('WebSocket error', { 
+                        error: error.message || 'Unknown error', 
+                        errorObject: error,
+                        userId: stringUserId 
+                    });
                     this.handleConnectionError();
                 };
-
+    
                 this.ws.onclose = () => {
-                    this.logger.debug('WebSocket closed', { userId });
+                    this.logger.debug('WebSocket closed', { userId: stringUserId });
                     this.handleConnectionClose();
                 };
-
+    
             } catch (error) {
                 this.logger.error('Failed to establish WebSocket connection', {
                     error: error.message,
-                    userId
+                    userId: stringUserId
                 });
                 this.handleConnectionError();
                 return null;
             }
         }
-
+    
         return this.ws;
     }
 
