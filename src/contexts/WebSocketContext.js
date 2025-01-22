@@ -35,6 +35,7 @@ class WebSocketService {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             try {
                 const websocketUrl = `${process.env.REACT_APP_WEBSOCKET_API}?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(stringUserId)}`;
+                
                 this.ws = new WebSocket(websocketUrl);
     
                 this.ws.onopen = () => {
@@ -84,15 +85,28 @@ class WebSocketService {
     
                 this.ws.onerror = (error) => {
                     this.logger.error('WebSocket error', { 
-                        error: error.message || 'Unknown error', 
+                        error: error.message || 'Unknown WebSocket error', 
                         errorObject: error,
                         userId: stringUserId 
                     });
+                    
+                    // More detailed error handling
+                    if (error instanceof Event) {
+                        this.logger.error('WebSocket connection failed', {
+                            readyState: this.ws.readyState,
+                            url: this.ws.url
+                        });
+                    }
+                    
                     this.handleConnectionError();
                 };
     
-                this.ws.onclose = () => {
-                    this.logger.debug('WebSocket closed', { userId: stringUserId });
+                this.ws.onclose = (event) => {
+                    this.logger.debug('WebSocket closed', { 
+                        userId: stringUserId,
+                        code: event.code,
+                        reason: event.reason
+                    });
                     this.handleConnectionClose();
                 };
     
