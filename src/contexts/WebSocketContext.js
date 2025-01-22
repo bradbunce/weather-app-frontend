@@ -49,54 +49,48 @@ class WebSocketService {
 
                 this.ws.onmessage = (event) => {
                     try {
-                        const data = JSON.parse(event.data);
+                        const parsedEvent = JSON.parse(event.data);
                         
                         this.logger.debug('Raw WebSocket message received', {
-                            rawMessage: event.data
+                            rawMessage: event.data,
+                            parsedType: parsedEvent.type
                         });
                 
-                        let weatherData;
-                        try {
-                            weatherData = data.rawData ? JSON.parse(data.rawData) : [];
-                        } catch (parseError) {
-                            this.logger.error('Failed to parse rawData', {
-                                error: parseError.message,
-                                rawData: data.rawData
-                            });
-                            weatherData = data.data || [];
-                        }
-                
+                        // The data is in parsedEvent.data, not rawData
+                        const weatherItems = parsedEvent.data || [];
+                        
                         this.logger.debug('Processing WebSocket message', {
-                            messageType: data.type,
-                            weatherData: weatherData,
-                            dataType: typeof weatherData
+                            messageType: parsedEvent.type,
+                            weatherItemCount: weatherItems.length
                         });
                 
-                        // Handle both array and single object responses
-                        const weatherItems = Array.isArray(weatherData) ? weatherData : [weatherData];
+                        // Process each weather item
+                        for (const item of weatherItems) {
+                            // The weather data is nested under weather property
+                            const weatherData = item.weather;
+                            if (!weatherData) continue;
                 
-                        // Notify each handler with its respective data
-                        for (const location of weatherItems) {
-                            const locationId = location.location_id;
+                            const locationId = item.location_id;
                             const handler = this.messageHandlers.get(locationId);
                             
                             if (handler) {
                                 this.logger.debug('Found handler for location', {
                                     locationId,
-                                    cityName: handler.cityName
+                                    cityName: handler.cityName,
+                                    weatherData
                                 });
                 
                                 handler.onMessage({
-                                    type: data.type || 'weatherUpdate',
+                                    type: parsedEvent.type,
                                     connectionCity: handler.cityName,
                                     data: {
-                                        temperature: location.temperature,
-                                        condition: location.condition,
-                                        humidity: location.humidity,
-                                        windSpeed: location.wind_speed,
-                                        timestamp: location.last_updated,
-                                        ...(location.details && {
-                                            icon: location.details.condition_icon
+                                        temperature: weatherData.temperature,
+                                        condition: weatherData.condition,
+                                        humidity: weatherData.humidity,
+                                        windSpeed: weatherData.wind_speed,
+                                        timestamp: weatherData.last_updated,
+                                        ...(weatherData.details && {
+                                            icon: weatherData.details.condition_icon
                                         })
                                     }
                                 });
