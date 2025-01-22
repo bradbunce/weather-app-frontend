@@ -53,38 +53,64 @@ class WebSocketService {
                         
                         this.logger.debug('Processing message', {
                             type: message.type,
-                            dataCount: message.data?.length
+                            dataCount: message.data?.length,
+                            completeMessage: message
                         });
                 
                         // Process each item in the data array
                         const items = message.data || [];
                         for (const item of items) {
-                            const location_id = item.location_id;
+                            this.logger.debug('Item contents:', {
+                                item,
+                                itemType: typeof item,
+                                itemKeys: Object.keys(item)
+                            });
+                
+                            if (item.data) {
+                                this.logger.debug('Item has data property:', {
+                                    data: item.data
+                                });
+                            }
+                
+                            // Try both item and item.data for location_id
+                            const locationData = item.data || item;
+                            const location_id = locationData.location_id;
+                            
+                            this.logger.debug('Location info:', {
+                                foundLocationId: location_id,
+                                itemLocationId: item.location_id,
+                                dataLocationId: item.data?.location_id
+                            });
+                
                             const handler = this.messageHandlers.get(location_id);
                             
                             if (handler) {
                                 this.logger.debug('Found handler for location', {
                                     location_id,
-                                    cityName: handler.cityName
+                                    cityName: handler.cityName,
+                                    weatherData: locationData
                                 });
                 
                                 handler.onMessage({
                                     type: message.type,
                                     connectionCity: handler.cityName,
                                     data: {
-                                        temperature: item.temperature,
-                                        condition: item.condition,
-                                        humidity: item.humidity,
-                                        windSpeed: item.wind_speed,
-                                        feelsLike: item.feels_like,
-                                        lastUpdated: item.last_updated,
-                                        details: item.details
+                                        temperature: locationData.temperature,
+                                        condition: locationData.condition,
+                                        humidity: locationData.humidity,
+                                        windSpeed: locationData.wind_speed,
+                                        feelsLike: locationData.feels_like,
+                                        lastUpdated: locationData.last_updated,
+                                        details: locationData.details
                                     }
                                 });
                             } else {
                                 this.logger.debug('No handler for location', {
                                     location_id,
-                                    availableHandlers: Array.from(this.messageHandlers.keys())
+                                    itemLocation: item.location_id,
+                                    dataLocation: locationData.location_id,
+                                    availableHandlers: Array.from(this.messageHandlers.keys()),
+                                    rawItem: JSON.stringify(item)
                                 });
                             }
                         }
