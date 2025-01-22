@@ -18,12 +18,18 @@ class WebSocketService {
     connect(params) {
         const { token, userId } = params;
         
-        if (!token || !userId) {
-            this.logger.error('Missing required connection parameters', { hasToken: !!token, hasUserId: !!userId });
+        // Convert userId to string if it's not already
+        const stringUserId = String(userId);
+        
+        if (!token || !stringUserId) {
+            this.logger.error('Missing required connection parameters', { 
+                hasToken: !!token, 
+                hasUserId: !!stringUserId 
+            });
             return null;
         }
-
-        this.userId = userId;
+    
+        this.userId = stringUserId;
 
         // Only create new connection if none exists or if it's closed
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
