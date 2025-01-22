@@ -61,14 +61,29 @@ class WebSocketService {
                         
                         this.logger.debug('Processing WebSocket message', {
                             messageType: parsedEvent.type,
-                            weatherItemCount: weatherItems.length
+                            weatherItemCount: weatherItems.length,
+                            firstItem: weatherItems[0]  // Log the structure of first item
+                        });
+                
+                        // Log all registered handlers
+                        this.logger.debug('Current message handlers', {
+                            handlerKeys: Array.from(this.messageHandlers.keys())
                         });
                 
                         // Process each weather item
                         for (const item of weatherItems) {
+                            this.logger.debug('Processing weather item', {
+                                item: item,  // Log the full item
+                                hasWeather: !!item.weather,
+                                locationId: item.location_id
+                            });
+                
                             // The weather data is nested under weather property
                             const weatherData = item.weather;
-                            if (!weatherData) continue;
+                            if (!weatherData) {
+                                this.logger.debug('No weather data for item');
+                                continue;
+                            }
                 
                             const locationId = item.location_id;
                             const handler = this.messageHandlers.get(locationId);
@@ -88,17 +103,21 @@ class WebSocketService {
                                         condition: weatherData.condition,
                                         humidity: weatherData.humidity,
                                         windSpeed: weatherData.wind_speed,
-                                        timestamp: weatherData.last_updated,
-                                        ...(weatherData.details && {
-                                            icon: weatherData.details.condition_icon
-                                        })
+                                        timestamp: parsedEvent.timestamp,
+                                        icon: weatherData.condition_icon
                                     }
+                                });
+                            } else {
+                                this.logger.debug('No handler found for location', {
+                                    locationId,
+                                    availableHandlers: Array.from(this.messageHandlers.keys())
                                 });
                             }
                         }
                     } catch (err) {
                         this.logger.error('Error processing message', {
                             error: err.message,
+                            stack: err.stack,
                             data: event.data
                         });
                     }
