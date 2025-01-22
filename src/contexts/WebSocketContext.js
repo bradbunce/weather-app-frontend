@@ -50,17 +50,42 @@ class WebSocketService {
                 this.ws.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
-                        const weatherData = JSON.parse(data.rawData || '[]');
                         
-                        this.logger.debug('Processing WebSocket message', {
-                            messageType: data.type,
-                            weatherData
+                        this.logger.debug('Raw WebSocket message received', {
+                            rawMessage: event.data
                         });
                 
+                        let weatherData;
+                        try {
+                            weatherData = data.rawData ? JSON.parse(data.rawData) : [];
+                        } catch (parseError) {
+                            this.logger.error('Failed to parse rawData', {
+                                error: parseError.message,
+                                rawData: data.rawData
+                            });
+                            weatherData = data.data || [];
+                        }
+                
+                        this.logger.debug('Processing WebSocket message', {
+                            messageType: data.type,
+                            weatherData: weatherData,
+                            dataType: typeof weatherData
+                        });
+                
+                        // Handle both array and single object responses
+                        const weatherItems = Array.isArray(weatherData) ? weatherData : [weatherData];
+                
                         // Notify each handler with its respective data
-                        for (const location of weatherData) {
-                            const handler = this.messageHandlers.get(location.location_id);
+                        for (const location of weatherItems) {
+                            const locationId = location.location_id;
+                            const handler = this.messageHandlers.get(locationId);
+                            
                             if (handler) {
+                                this.logger.debug('Found handler for location', {
+                                    locationId,
+                                    cityName: handler.cityName
+                                });
+                
                                 handler.onMessage({
                                     type: data.type || 'weatherUpdate',
                                     connectionCity: handler.cityName,
@@ -70,7 +95,9 @@ class WebSocketService {
                                         humidity: location.humidity,
                                         windSpeed: location.wind_speed,
                                         timestamp: location.last_updated,
-                                        icon: location.details?.condition_icon
+                                        ...(location.details && {
+                                            icon: location.details.condition_icon
+                                        })
                                     }
                                 });
                             }

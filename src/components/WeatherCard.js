@@ -24,7 +24,14 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
     }), [user?.token, location?.city_name, location?.country_code, location?.location_id]);
 
     const handleMessage = useCallback((data) => {
-        // First ensure this message is for this card
+        logger.debug('Weather card received message', {
+            cardId: componentId,
+            type: data.type,
+            cityName: connectionParams.cityName,
+            messageCity: data.connectionCity,
+            data: data
+        });
+    
         if (data.connectionCity !== connectionParams.cityName) {
             logger.debug('Ignoring message for different city', {
                 cardId: componentId,
@@ -33,29 +40,18 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             });
             return;
         }
-
+    
         logger.debug('Processing message for city', {
             cardId: componentId,
             type: data.type,
             cityName: connectionParams.cityName,
             data: data
         });
-
+    
         if (data.type === "weatherUpdate" || data.type === "getWeather") {
-            // Try to find our city's data in the array
-            const locationData = Array.isArray(data.data)
-                ? data.data.find(d => d.name === connectionParams.cityName)
-                : data.data;
-
-            logger.debug('Processing weather data', {
-                cardId: componentId,
-                cityName: connectionParams.cityName,
-                foundLocation: !!locationData,
-                rawData: data.data
-            });
-
-            if (locationData) {
-                const weatherData = locationData.weather || locationData;
+            const weatherData = data.data;
+            
+            if (weatherData) {
                 logger.debug("Weather data updated", {
                     cardId: componentId,
                     location: connectionParams.cityName,
@@ -67,6 +63,11 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                 setLoading(false);
                 setIsConnected(true);
             } else {
+                logger.debug("No weather data in message", {
+                    cardId: componentId,
+                    location: connectionParams.cityName,
+                    data: data
+                });
                 setError("No data available for this location");
                 setLoading(false);
             }
