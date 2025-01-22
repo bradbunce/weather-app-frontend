@@ -51,30 +51,44 @@ class WebSocketService {
                     try {
                         const parsedEvent = JSON.parse(event.data);
                         
+                        // Log the complete message first
+                        this.logger.debug('Raw message structure:', {
+                            fullMessage: parsedEvent
+                        });
+                
                         // Extract data array from the message
                         const items = parsedEvent.data || [];
                         
                         this.logger.debug('Processing WebSocket message', {
                             messageType: parsedEvent.type,
-                            itemCount: items.length
+                            itemCount: items.length,
+                            firstItem: items[0] ? JSON.stringify(items[0], null, 2) : 'no items'
                         });
                 
                         // Process each item
                         for (const item of items) {
-                            // Each item should have both a weather property and location_id
-                            this.logger.debug('Examining weather item', {
-                                locationId: item.location_id,
-                                city: item.name,
-                                hasWeather: !!item.weather
+                            // Log the complete structure of each item
+                            this.logger.debug('Weather item structure', {
+                                completeItem: JSON.stringify(item, null, 2),
+                                keys: Object.keys(item)
                             });
                 
-                            if (!item.weather || !item.location_id) continue;
+                            // Extract weather data - it might be nested under item.data
+                            const weatherInfo = item.data || item;
+                            const locationId = weatherInfo.location_id;
+                            
+                            this.logger.debug('Examining weather item', {
+                                locationId,
+                                weatherInfo: JSON.stringify(weatherInfo, null, 2)
+                            });
                 
-                            const handler = this.messageHandlers.get(item.location_id);
+                            if (!locationId) continue;
+                
+                            const handler = this.messageHandlers.get(locationId);
                             
                             if (handler) {
                                 this.logger.debug('Found handler for location', {
-                                    locationId: item.location_id,
+                                    locationId,
                                     cityName: handler.cityName
                                 });
                 
@@ -82,13 +96,13 @@ class WebSocketService {
                                     type: parsedEvent.type,
                                     connectionCity: handler.cityName,
                                     data: {
-                                        temperature: item.temperature,
-                                        condition: item.condition,
-                                        humidity: item.humidity,
-                                        windSpeed: item.wind_speed,
-                                        feelsLike: item.feels_like,
-                                        timestamp: item.last_updated,
-                                        lastUpdated: item.last_updated
+                                        temperature: weatherInfo.temperature,
+                                        condition: weatherInfo.condition,
+                                        humidity: weatherInfo.humidity,
+                                        windSpeed: weatherInfo.wind_speed,
+                                        feelsLike: weatherInfo.feels_like,
+                                        timestamp: weatherInfo.last_updated,
+                                        lastUpdated: weatherInfo.last_updated
                                     }
                                 });
                             }
