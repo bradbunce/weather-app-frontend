@@ -103,27 +103,30 @@ class WebSocketService {
     }
 
     subscribe(ws, params) {
-        const { cityName, countryCode, token } = params;
+        const { cityName, countryCode, token, locationId } = params;
         
-        if (!cityName || ws.readyState !== WebSocket.OPEN) return false;
+        if (!locationId || ws.readyState !== WebSocket.OPEN) return false;
     
         try {
-            this.logger.debug('Subscribing to location', { cityName });
-            // First subscribe message records the connection and city in DynamoDB
+            this.logger.debug('Subscribing to location', { 
+                locationId,
+                cityName 
+            });
+            
             ws.send(JSON.stringify({
                 action: 'subscribe',
-                locationName: cityName,
+                locationId,  // Send locationId instead of locationName
                 countryCode,
                 token,
-                isInitial: true  // Tell backend this is a new subscription
+                isInitial: true
             }));
     
-            // Request initial weather data
-            this.refreshWeather(cityName, { countryCode, token });
+            this.refreshWeather(locationId, { countryCode, token });
             return true;
         } catch (error) {
             this.logger.error('Error subscribing', {
                 error: error.message,
+                locationId,
                 cityName
             });
             return false;
@@ -149,21 +152,20 @@ class WebSocketService {
         }
     }
 
-    refreshWeather(cityName, params) {
+    refreshWeather(locationId, params) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
-
+    
         try {
             this.ws.send(JSON.stringify({
                 action: 'getWeather',
-                locationName: cityName,
-                countryCode: params.countryCode,
+                locationId,  // Use locationId instead of locationName
                 token: params.token
             }));
             return true;
         } catch (error) {
             this.logger.error('Error refreshing weather', {
                 error: error.message,
-                cityName
+                locationId
             });
             return false;
         }
