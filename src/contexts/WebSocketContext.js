@@ -51,73 +51,51 @@ class WebSocketService {
                     try {
                         const parsedEvent = JSON.parse(event.data);
                         
-                        this.logger.debug('Raw WebSocket message received', {
-                            rawMessage: event.data,
-                            parsedType: parsedEvent.type
-                        });
-                
-                        // The data is in parsedEvent.data, not rawData
-                        const weatherItems = parsedEvent.data || [];
+                        // Extract data array from the message
+                        const items = parsedEvent.data || [];
                         
                         this.logger.debug('Processing WebSocket message', {
                             messageType: parsedEvent.type,
-                            weatherItemCount: weatherItems.length,
-                            firstItem: weatherItems[0]  // Log the structure of first item
+                            itemCount: items.length
                         });
                 
-                        // Log all registered handlers
-                        this.logger.debug('Current message handlers', {
-                            handlerKeys: Array.from(this.messageHandlers.keys())
-                        });
-                
-                        // Process each weather item
-                        for (const item of weatherItems) {
-                            this.logger.debug('Processing weather item', {
-                                item: item,  // Log the full item
-                                hasWeather: !!item.weather,
-                                locationId: item.location_id
+                        // Process each item
+                        for (const item of items) {
+                            // Each item should have both a weather property and location_id
+                            this.logger.debug('Examining weather item', {
+                                locationId: item.location_id,
+                                city: item.name,
+                                hasWeather: !!item.weather
                             });
                 
-                            // The weather data is nested under weather property
-                            const weatherData = item.weather;
-                            if (!weatherData) {
-                                this.logger.debug('No weather data for item');
-                                continue;
-                            }
+                            if (!item.weather || !item.location_id) continue;
                 
-                            const locationId = item.location_id;
-                            const handler = this.messageHandlers.get(locationId);
+                            const handler = this.messageHandlers.get(item.location_id);
                             
                             if (handler) {
                                 this.logger.debug('Found handler for location', {
-                                    locationId,
-                                    cityName: handler.cityName,
-                                    weatherData
+                                    locationId: item.location_id,
+                                    cityName: handler.cityName
                                 });
                 
                                 handler.onMessage({
                                     type: parsedEvent.type,
                                     connectionCity: handler.cityName,
                                     data: {
-                                        temperature: weatherData.temperature,
-                                        condition: weatherData.condition,
-                                        humidity: weatherData.humidity,
-                                        windSpeed: weatherData.wind_speed,
-                                        timestamp: parsedEvent.timestamp,
-                                        icon: weatherData.condition_icon
+                                        temperature: item.temperature,
+                                        condition: item.condition,
+                                        humidity: item.humidity,
+                                        windSpeed: item.wind_speed,
+                                        feelsLike: item.feels_like,
+                                        timestamp: item.last_updated,
+                                        lastUpdated: item.last_updated
                                     }
-                                });
-                            } else {
-                                this.logger.debug('No handler found for location', {
-                                    locationId,
-                                    availableHandlers: Array.from(this.messageHandlers.keys())
                                 });
                             }
                         }
                     } catch (err) {
                         this.logger.error('Error processing message', {
                             error: err.message,
-                            stack: err.stack,
                             data: event.data
                         });
                     }

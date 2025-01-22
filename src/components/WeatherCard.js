@@ -29,7 +29,7 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             type: data.type,
             cityName: connectionParams.cityName,
             messageCity: data.connectionCity,
-            data: data
+            weatherData: data.data
         });
     
         if (data.connectionCity !== connectionParams.cityName) {
@@ -41,13 +41,6 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             return;
         }
     
-        logger.debug('Processing message for city', {
-            cardId: componentId,
-            type: data.type,
-            cityName: connectionParams.cityName,
-            data: data
-        });
-    
         if (data.type === "weatherUpdate" || data.type === "getWeather") {
             const weatherData = data.data;
             
@@ -57,7 +50,9 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                     location: connectionParams.cityName,
                     temperature: weatherData.temperature,
                     condition: weatherData.condition,
+                    lastUpdated: weatherData.lastUpdated
                 });
+    
                 setWeather(weatherData);
                 setError("");
                 setLoading(false);
