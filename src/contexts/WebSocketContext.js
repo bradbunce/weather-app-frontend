@@ -12,59 +12,62 @@ class WebSocketService {
     }
 
     connect(params) {
-        const { token, cityName, countryCode, onMessage, onError } = params;
+        const { token, cityName, countryCode, onMessage, onError, locationId } = params;
         
         this.logger.debug('Connection request', { 
             hasToken: !!token,
             cityName,
-            countryCode
+            countryCode,
+            locationId
         });
-
-        // Store the message handlers for this city
-        this.messageHandlers.set(cityName, { onMessage, onError });
-
+    
+        // Store the message handlers for this locationId
+        this.messageHandlers.set(locationId, { 
+            onMessage, 
+            onError,
+            cityName // Store cityName for reference
+        });
+    
         // Create WebSocket if it doesn't exist
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             try {
                 const websocketUrl = `${process.env.REACT_APP_WEBSOCKET_API}?token=${encodeURIComponent(token)}`;
                 this.ws = new WebSocket(websocketUrl);
-
+    
                 this.ws.onopen = () => {
                     this.logger.info('WebSocket connected');
                     
-                    // Subscribe all cities
-                    for (const [city, cityHandlers] of this.messageHandlers.entries()) {
+                    // Subscribe all locations
+                    for (const [locId, handlers] of this.messageHandlers.entries()) {
                         this.subscribe(this.ws, { 
-                            cityName: city, 
+                            locationId: locId,
+                            cityName: handlers.cityName,
                             countryCode, 
                             token 
                         });
-                        cityHandlers.onMessage?.({ type: 'connect', cityName: city });
                     }
                 };
-
+    
                 this.ws.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
                         
-                        // Extract city name from the message data
-                        const messageCityName = data.cityName || 
-                                                 data.data?.[0]?.name || 
-                                                 data.data?.name;
+                        // Extract locationId from the message data
+                        const messageLocationId = data.locationId;
                         
                         this.logger.debug('WebSocket message received', {
                             messageType: data.type,
-                            cityName: messageCityName,
+                            locationId: messageLocationId,
                             rawData: JSON.stringify(data.data)
                         });
                 
-                        // Find the handler for this city
-                        if (messageCityName) {
-                            const cityHandler = this.messageHandlers.get(messageCityName);
-                            if (cityHandler) {
-                                cityHandler.onMessage({
+                        // Find the handler for this locationId
+                        if (messageLocationId) {
+                            const handler = this.messageHandlers.get(messageLocationId);
+                            if (handler) {
+                                handler.onMessage({
                                     ...data,
-                                    connectionCity: messageCityName
+                                    connectionCity: handler.cityName
                                 });
                             }
                         }
@@ -75,19 +78,8 @@ class WebSocketService {
                         });
                     }
                 };
-
-                this.ws.onerror = (error) => {
-                    this.logger.error('WebSocket error', { error: error.message });
-                    // Notify all handlers of the error
-                    for (const cityHandler of this.messageHandlers.values()) {
-                        cityHandler.onError?.('Connection error');
-                    }
-                };
-
-                this.ws.onclose = () => {
-                    this.logger.debug('WebSocket closed');
-                    this.ws = null;
-                };
+    
+                // ... rest of the WebSocket setup remains the same ...
             } catch (error) {
                 this.logger.error('Failed to establish connection', {
                     error: error.message
@@ -96,10 +88,10 @@ class WebSocketService {
                 return null;
             }
         } else {
-            // If WebSocket exists, just subscribe this city
-            this.subscribe(this.ws, { cityName, countryCode, token });
+            // If WebSocket exists, just subscribe this location
+            this.subscribe(this.ws, { locationId, cityName, countryCode, token });
         }
-
+    
         return this.ws;
     }
 

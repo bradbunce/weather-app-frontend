@@ -96,66 +96,71 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
             setIsConnected(false);
             return;
         }
-
-        if (!connectionParams.cityName) {
-            logger.debug('Skipping WebSocket connection - no city name', {
+    
+        if (!connectionParams.cityName || !location.location_id) {
+            logger.debug('Skipping WebSocket connection - missing required params', {
                 cardId: componentId,
-                params: connectionParams
+                params: connectionParams,
+                locationId: location.location_id
             });
             setIsConnected(false);
             return;
         }
-
+    
         if (!isConnected) {
             logger.debug('Initiating WebSocket connection', {
                 cardId: componentId,
                 cityName: connectionParams.cityName,
                 countryCode: connectionParams.countryCode,
+                locationId: location.location_id,
                 isAuthenticated,
                 hasToken: !!user?.token
             });
-
+    
             const connection = webSocket.connect({
                 ...connectionParams,
+                locationId: location.location_id,
                 onMessage: handleMessage,
                 onError: handleError
             });
             
-            // Only set connected if we got a real connection back
             if (connection) {
                 setIsConnected(true);
             } else {
                 logger.debug('Connection queued or failed', {
                     cardId: componentId,
-                    cityName: connectionParams.cityName
+                    cityName: connectionParams.cityName,
+                    locationId: location.location_id
                 });
             }
         }
 
         // Cleanup function
-        return () => {
-            if (connectionParams.cityName && isConnected) {
-                logger.debug('Cleaning up WebSocket connection', {
-                    cardId: componentId,
-                    cityName: connectionParams.cityName,
-                    isAuthenticated,
-                    hasToken: !!user?.token
-                });
-                webSocket.unsubscribe(connectionParams.cityName, connectionParams);
-                setIsConnected(false);
-            }
-        };
-    }, [
-        connectionParams, 
-        webSocket, 
-        handleMessage, 
-        handleError, 
-        logger, 
-        isConnected, 
-        isAuthenticated, 
-        user?.token,
-        componentId
-    ]);
+    return () => {
+        if (connectionParams.cityName && isConnected) {
+            logger.debug('Cleaning up WebSocket connection', {
+                cardId: componentId,
+                cityName: connectionParams.cityName,
+                locationId: location.location_id,
+                isAuthenticated,
+                hasToken: !!user?.token
+            });
+            webSocket.unsubscribe(location.location_id, connectionParams);
+            setIsConnected(false);
+        }
+    };
+}, [
+    connectionParams, 
+    webSocket, 
+    handleMessage, 
+    handleError, 
+    logger, 
+    isConnected, 
+    isAuthenticated, 
+    user?.token,
+    componentId,
+    location.location_id
+]);
 
     // Handle auth state changes
     useEffect(() => {
