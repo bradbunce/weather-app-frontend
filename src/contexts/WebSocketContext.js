@@ -53,67 +53,40 @@ class WebSocketService {
                         
                         this.logger.debug('Processing message', {
                             type: message.type,
-                            dataCount: message.data?.length,
-                            completeMessage: message
+                            dataCount: message.data?.length
                         });
                 
                         // Process each item in the data array
                         const items = message.data || [];
-                        for (const item of items) {
-                            this.logger.debug('Item contents:', {
-                                item,
-                                itemType: typeof item,
-                                itemKeys: Object.keys(item)
-                            });
-                
-                            if (item.data) {
-                                this.logger.debug('Item has data property:', {
-                                    data: item.data
-                                });
-                            }
-                
-                            // Try both item and item.data for location_id
-                            const locationData = item.data || item;
-                            const location_id = locationData.location_id;
+                        items.forEach((item) => {
+                            const locationId = item.id;
+                            const handler = this.messageHandlers.get(locationId);
                             
-                            this.logger.debug('Location info:', {
-                                foundLocationId: location_id,
-                                itemLocationId: item.location_id,
-                                dataLocationId: item.data?.location_id
-                            });
-                
-                            const handler = this.messageHandlers.get(location_id);
-                            
-                            if (handler) {
+                            if (handler && item.weather) {
                                 this.logger.debug('Found handler for location', {
-                                    location_id,
+                                    locationId,
                                     cityName: handler.cityName,
-                                    weatherData: locationData
+                                    weatherData: item.weather
                                 });
                 
                                 handler.onMessage({
                                     type: message.type,
                                     connectionCity: handler.cityName,
-                                    data: {
-                                        temperature: locationData.temperature,
-                                        condition: locationData.condition,
-                                        humidity: locationData.humidity,
-                                        windSpeed: locationData.wind_speed,
-                                        feelsLike: locationData.feels_like,
-                                        lastUpdated: locationData.last_updated,
-                                        details: locationData.details
-                                    }
+                                    data: item.weather
+                                });
+                            } else if (item.error) {
+                                this.logger.error('Location reported error', {
+                                    locationId,
+                                    error: item.error
                                 });
                             } else {
-                                this.logger.debug('No handler for location', {
-                                    location_id,
-                                    itemLocation: item.location_id,
-                                    dataLocation: locationData.location_id,
-                                    availableHandlers: Array.from(this.messageHandlers.keys()),
-                                    rawItem: JSON.stringify(item)
+                                this.logger.debug('No handler or weather data', {
+                                    locationId,
+                                    hasHandler: !!handler,
+                                    hasWeather: !!item.weather
                                 });
                             }
-                        }
+                        });
                     } catch (err) {
                         this.logger.error('Error processing message', {
                             error: err.message,
