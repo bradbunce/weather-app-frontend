@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useMemo, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { useLogger } from '../utils/logger';
 
@@ -7,92 +7,67 @@ const WebSocketContext = createContext(null);
 class WebSocketService {
     constructor(logger) {
         this.ws = null;
-        this.messageHandlers = new Map();
+        this.messageHandlers = new Map();  // locationId -> handler mapping
         this.logger = logger;
+        this.userId = null;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 3;
+        this.reconnectTimeout = null;
     }
 
     connect(params) {
-        const { token, cityName, countryCode, onMessage, onError, locationId } = params;
+        const { token, userId } = params;
         
-        this.logger.debug('Connection request', { 
-            hasToken: !!token,
-            cityName,
-            locationId,
-            countryCode
-        });
+        if (!token || !userId) {
+            this.logger.error('Missing required connection parameters', { hasToken: !!token, hasUserId: !!userId });
+            return null;
+        }
 
-        // Store the message handlers for this locationId
-        this.messageHandlers.set(locationId, { 
-            onMessage, 
-            onError,
-            cityName // Store cityName for reference
-        });
+        this.userId = userId;
 
-        // Create WebSocket if it doesn't exist
+        // Only create new connection if none exists or if it's closed
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             try {
-                const websocketUrl = `${process.env.REACT_APP_WEBSOCKET_API}?token=${encodeURIComponent(token)}`;
+                const websocketUrl = `${process.env.REACT_APP_WEBSOCKET_API}?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(userId)}`;
                 this.ws = new WebSocket(websocketUrl);
 
                 this.ws.onopen = () => {
-                    this.logger.info('WebSocket connected');
-                    // Subscribe all locations
-                    for (const [locId, handlers] of this.messageHandlers.entries()) {
-                        this.subscribe(this.ws, { 
-                            locationId: locId,
-                            cityName: handlers.cityName, 
-                            countryCode, 
-                            token 
-                        });
-                    }
+                    this.logger.info('WebSocket connected', { userId });
+                    this.reconnectAttempts = 0;
+                    
+                    // Subscribe all existing locations
+                    this.subscribeAllLocations(token);
                 };
 
                 this.ws.onmessage = (event) => {
                     try {
                         const message = JSON.parse(event.data);
                         
-                        this.logger.debug('Processing WebSocket message', {
+                        this.logger.debug('Received WebSocket message', {
                             type: message.type,
-                            dataCount: message.data?.length,
-                            firstItem: message.data?.[0]
+                            dataCount: message.data?.length
                         });
-                
-                        // Process each item in the data array
-                        const items = message.data || [];
-                        items.forEach((item) => {
-                            // Match on 'id' which is what processWeatherData uses
-                            const locationId = parseInt(item.id);
-                            const handler = this.messageHandlers.get(locationId);
-                            
-                            if (handler && item.weather) {
-                                this.logger.debug('Found handler for location', {
-                                    locationId,
-                                    cityName: handler.cityName,
-                                    data: item.weather
-                                });
-                
-                                handler.onMessage({
-                                    type: message.type,
-                                    connectionCity: item.name,
-                                    data: {
-                                        temperature: item.weather.temperature,
-                                        condition: item.weather.condition,
-                                        humidity: item.weather.humidity,
-                                        windSpeed: item.weather.windSpeed,
-                                        feelsLike: item.weather.feelsLike,
-                                        lastUpdated: item.weather.lastUpdated
-                                    }
-                                });
-                            } else {
-                                this.logger.debug('Unable to handle weather data', {
-                                    itemId: item.id,
-                                    locationId,
-                                    hasHandler: !!handler,
-                                    hasWeather: !!item.weather,
-                                    availableHandlers: Array.from(this.messageHandlers.keys())
-                                });
-                            }
-                        });
+
+                        if (Array.isArray(message.data)) {
+                            message.data.forEach(locationData => {
+                                const id = parseInt(locationData.id);
+                                const handler = this.messageHandlers.get(id);
+                                
+                                if (handler && locationData.weather) {
+                                    handler.onMessage({
+                                        type: message.type,
+                                        data: {
+                                            temperature: locationData.weather.temperature,
+                                            condition: locationData.weather.condition,
+                                            humidity: locationData.weather.humidity,
+                                            windSpeed: locationData.weather.windSpeed,
+                                            feelsLike: locationData.weather.feelsLike,
+                                            timestamp: locationData.weather.lastUpdated
+                                        }
+                                    });
+                                }
+                            });
+                        }
                     } catch (err) {
                         this.logger.error('Error processing WebSocket message', {
                             error: err.message,
@@ -102,143 +77,147 @@ class WebSocketService {
                 };
 
                 this.ws.onerror = (error) => {
-                    this.logger.error('WebSocket error', { error: error.message });
-                    // Notify all handlers of the error
-                    for (const cityHandler of this.messageHandlers.values()) {
-                        cityHandler.onError?.('Connection error');
-                    }
+                    this.logger.error('WebSocket error', { error: error.message, userId });
+                    this.handleConnectionError();
                 };
 
                 this.ws.onclose = () => {
-                    this.logger.debug('WebSocket closed');
-                    this.ws = null;
+                    this.logger.debug('WebSocket closed', { userId });
+                    this.handleConnectionClose();
                 };
+
             } catch (error) {
-                this.logger.error('Failed to establish connection', {
-                    error: error.message
+                this.logger.error('Failed to establish WebSocket connection', {
+                    error: error.message,
+                    userId
                 });
-                onError?.('Failed to establish connection');
+                this.handleConnectionError();
                 return null;
             }
-        } else {
-            // If WebSocket exists, just subscribe this location
-            this.subscribe(this.ws, { locationId, cityName, countryCode, token });
         }
 
         return this.ws;
     }
 
-    subscribe(ws, params) {
-        const { cityName, countryCode, token, locationId } = params;
+    handleConnectionError() {
+        // Notify all handlers of the error
+        for (const handler of this.messageHandlers.values()) {
+            handler.onError?.('Connection error');
+        }
         
-        if (!locationId || ws.readyState !== WebSocket.OPEN) return false;
+        this.attemptReconnect();
+    }
 
-        try {
-            this.logger.debug('Subscribing to location', { 
-                locationId,
-                cityName 
-            });
+    handleConnectionClose() {
+        this.ws = null;
+        this.attemptReconnect();
+    }
+
+    attemptReconnect() {
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
             
-            ws.send(JSON.stringify({
-                action: 'subscribe',
-                locationId,
-                countryCode,
-                token,
-                isInitial: true
-            }));
-
-            // Request initial weather data
-            this.refreshWeather(locationId, { countryCode, token });
-            return true;
-        } catch (error) {
-            this.logger.error('Error subscribing', {
-                error: error.message,
-                locationId,
-                cityName
+            this.logger.debug('Scheduling reconnection attempt', {
+                attempt: this.reconnectAttempts,
+                delay
             });
-            return false;
+
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = setTimeout(() => {
+                if (this.userId) {
+                    this.connect({ token: this.getStoredToken(), userId: this.userId });
+                }
+            }, delay);
         }
     }
 
-    unsubscribe(cityName, params) {
+    getStoredToken() {
+        // Implement based on your auth storage mechanism
+        return localStorage.getItem('auth_token');
+    }
+
+    subscribeAllLocations(token) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
         try {
-            this.ws.send(JSON.stringify({
-                action: 'unsubscribe',
-                locationName: cityName,
-                countryCode: params.countryCode,
-                token: params.token
-            }));
-            this.messageHandlers.delete(cityName);
+            const locations = Array.from(this.messageHandlers.keys());
+            
+            if (locations.length > 0) {
+                this.logger.debug('Subscribing to all locations', { 
+                    locationCount: locations.length,
+                    userId: this.userId
+                });
+
+                this.ws.send(JSON.stringify({
+                    action: 'subscribe',
+                    locations,
+                    token,
+                    isInitial: true
+                }));
+
+                // Request initial weather data for all locations
+                this.refreshWeather(locations, token);
+            }
         } catch (error) {
-            this.logger.error('Error unsubscribing', {
+            this.logger.error('Error subscribing to locations', {
                 error: error.message,
-                cityName
+                userId: this.userId
             });
         }
     }
 
-    refreshWeather(locationId, params) {
+    addLocationHandler(locationId, handlers) {
+        this.messageHandlers.set(locationId, handlers);
+        
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.refreshWeather([locationId], this.getStoredToken());
+        }
+    }
+
+    removeLocationHandler(locationId) {
+        this.messageHandlers.delete(locationId);
+    }
+
+    refreshWeather(locationIds, token) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
-    
+
         try {
             this.ws.send(JSON.stringify({
                 action: 'getWeather',
-                locationId,  // Use locationId instead of locationName
-                token: params.token
+                locations: Array.isArray(locationIds) ? locationIds : [locationIds],
+                token
             }));
             return true;
         } catch (error) {
             this.logger.error('Error refreshing weather', {
                 error: error.message,
-                locationId
+                locationIds
             });
             return false;
         }
     }
 
-    cleanup(token) {
-        this.logger.info('Starting WebSocket cleanup');
-    
-        if (this.ws && token) {
-            // Get all registered locations
-            const locations = Array.from(this.messageHandlers.keys());
-            this.logger.debug('Cleaning up locations', { locations });
-    
-            // Send unsubscribe for each location
-            locations.forEach(cityName => {
-                try {
-                    if (this.ws.readyState === WebSocket.OPEN) {
-                        this.ws.send(JSON.stringify({
-                            action: 'unsubscribe',
-                            locationName: cityName,
-                            token,
-                            isCleanup: true  // Tell backend this is final cleanup
-                        }));
-                    }
-                } catch (error) {
-                    this.logger.error('Error unsubscribing location during cleanup', {
-                        error: error.message,
-                        cityName
-                    });
-                }
-            });
-    
-            // Wait a moment for messages to be processed
-            setTimeout(() => {
-                try {
-                    this.ws.close(1000, 'Cleanup initiated');
-                } catch (error) {
-                    this.logger.error('Error closing WebSocket', {
-                        error: error.message
-                    });
-                }
-            }, 500);
+    cleanup() {
+        this.logger.info('Starting WebSocket cleanup', { userId: this.userId });
+        
+        clearTimeout(this.reconnectTimeout);
+
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            try {
+                this.ws.close(1000, 'Cleanup initiated');
+            } catch (error) {
+                this.logger.error('Error closing WebSocket', {
+                    error: error.message,
+                    userId: this.userId
+                });
+            }
         }
-    
+
         this.ws = null;
         this.messageHandlers.clear();
+        this.userId = null;
+        this.reconnectAttempts = 0;
         
         this.logger.info('WebSocket cleanup completed');
     }
@@ -248,30 +227,21 @@ export function WebSocketProvider({ children }) {
     const { user } = useAuth();
     const logger = useLogger();
     const webSocketService = useMemo(() => new WebSocketService(logger), [logger]);
-    const lastValidToken = useRef(user?.token);
     
     useEffect(() => {
-        if (user?.token) {
-            lastValidToken.current = user.token;
-        } else if (lastValidToken.current) {
-            webSocketService.cleanup(lastValidToken.current);
-            lastValidToken.current = null;
+        if (user?.token && user?.username) {
+            webSocketService.connect({ 
+                token: user.token, 
+                userId: user.username 
+            });
+        } else {
+            webSocketService.cleanup();
         }
-    }, [user, webSocketService]);
 
-    useEffect(() => {
-        const handleLogoutStarted = (event) => {
-            const token = event.detail?.token || lastValidToken.current;
-            if (token) {
-                webSocketService.cleanup(token);
-            }
-        };
-
-        window.addEventListener('auth-logout-started', handleLogoutStarted);
         return () => {
-            window.removeEventListener('auth-logout-started', handleLogoutStarted);
+            webSocketService.cleanup();
         };
-    }, [webSocketService]);
+    }, [user, webSocketService]);
 
     return (
         <WebSocketContext.Provider value={webSocketService}>

@@ -6,242 +6,163 @@ import { useLogger } from "../utils/logger";
 
 export const WeatherCard = React.memo(({ location, onRemove }) => {
     const componentId = useMemo(() => `weather-${location.location_id}`, [location.location_id]);
-    const { user, isAuthenticated } = useAuth();
+    const { isAuthenticated } = useAuth();
     const webSocket = useWebSocket();
     const logger = useLogger();
 
-    const [weather, setWeather] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [isConnected, setIsConnected] = useState(false);
+    const [weatherState, setWeatherState] = useState({
+        data: null,
+        loading: true,
+        error: '',
+        isConnected: false
+    });
 
-    // Connection parameters
-    const connectionParams = useMemo(() => ({
-        token: user?.token,
-        cityName: location?.city_name,
-        countryCode: location?.country_code,
-        locationId: location?.location_id
-    }), [user?.token, location?.city_name, location?.country_code, location?.location_id]);
-
-    const handleMessage = useCallback((data) => {
+    // Handle incoming weather data
+    const handleMessage = useCallback((message) => {
         logger.debug('Weather card received message', {
             cardId: componentId,
-            type: data.type,
-            cityName: connectionParams.cityName,
-            messageCity: data.connectionCity,
-            weatherData: data.data
+            type: message.type,
+            data: message.data
         });
-    
-        if (data.connectionCity !== connectionParams.cityName) {
-            logger.debug('Ignoring message for different city', {
-                cardId: componentId,
-                cardCity: connectionParams.cityName,
-                messageCity: data.connectionCity
-            });
-            return;
-        }
-    
-        if (data.type === "weatherUpdate" || data.type === "getWeather") {
-            const weatherData = data.data;
-            
-            if (weatherData) {
-                logger.debug("Weather data updated", {
-                    cardId: componentId,
-                    location: connectionParams.cityName,
-                    temperature: weatherData.temperature,
-                    condition: weatherData.condition,
-                    lastUpdated: weatherData.lastUpdated
-                });
-    
-                setWeather(weatherData);
-                setError("");
-                setLoading(false);
-                setIsConnected(true);
-            } else {
-                logger.debug("No weather data in message", {
-                    cardId: componentId,
-                    location: connectionParams.cityName,
-                    data: data
-                });
-                setError("No data available for this location");
-                setLoading(false);
-            }
-        }
-    }, [connectionParams.cityName, logger, componentId]);
 
+        if (message.data) {
+            setWeatherState(prev => ({
+                ...prev,
+                data: message.data,
+                loading: false,
+                error: '',
+                isConnected: true
+            }));
+        } else {
+            setWeatherState(prev => ({
+                ...prev,
+                loading: false,
+                error: 'No data available for this location',
+                isConnected: true
+            }));
+        }
+    }, [componentId, logger]);
+
+    // Handle connection errors
     const handleError = useCallback((errorMessage) => {
         logger.error("WeatherCard error", {
             cardId: componentId,
-            message: errorMessage,
-            location: connectionParams.cityName,
+            message: errorMessage
         });
-        setError(errorMessage);
-        setLoading(false);
-        setIsConnected(false);
-    }, [connectionParams.cityName, logger, componentId]);
 
-    // Initialize WebSocket connection
+        setWeatherState(prev => ({
+            ...prev,
+            error: errorMessage,
+            loading: false,
+            isConnected: false
+        }));
+    }, [componentId, logger]);
+
+    // Register with WebSocket service
     useEffect(() => {
-        if (!isAuthenticated || !user?.token) {
-            logger.debug('Skipping WebSocket connection - not authenticated', {
-                cardId: componentId,
-                cityName: connectionParams.cityName,
-                locationId: connectionParams.locationId,
-                isAuthenticated,
-                hasToken: !!user?.token
-            });
-            setIsConnected(false);
+        if (!isAuthenticated || !location?.location_id) {
+            setWeatherState(prev => ({
+                ...prev,
+                loading: false,
+                error: 'Authentication required',
+                isConnected: false
+            }));
             return;
         }
-    
-        if (!connectionParams.cityName || !connectionParams.locationId) {
-            logger.debug('Skipping WebSocket connection - missing required params', {
-                cardId: componentId,
-                params: connectionParams
-            });
-            setIsConnected(false);
-            return;
-        }
-    
-        if (!isConnected) {
-            logger.debug('Initiating WebSocket connection', {
-                cardId: componentId,
-                cityName: connectionParams.cityName,
-                locationId: connectionParams.locationId,
-                countryCode: connectionParams.countryCode,
-                isAuthenticated,
-                hasToken: !!user?.token
-            });
-    
-            const connection = webSocket.connect({
-                ...connectionParams,
-                onMessage: handleMessage,
-                onError: handleError
-            });
-            
-            if (connection) {
-                setIsConnected(true);
-            }
-        }
-    
-        // Cleanup function
+
+        logger.debug('Registering weather card handler', {
+            cardId: componentId,
+            locationId: location.location_id
+        });
+
+        // Add handler for this location
+        webSocket.addLocationHandler(location.location_id, {
+            onMessage: handleMessage,
+            onError: handleError
+        });
+
+        // Cleanup on unmount
         return () => {
-            if (connectionParams.locationId && isConnected) {
-                logger.debug('Cleaning up WebSocket connection', {
-                    cardId: componentId,
-                    cityName: connectionParams.cityName,
-                    locationId: connectionParams.locationId,
-                    isAuthenticated,
-                    hasToken: !!user?.token
-                });
-                webSocket.unsubscribe(connectionParams.locationId, connectionParams);
-                setIsConnected(false);
-            }
+            logger.debug('Cleaning up weather card handler', {
+                cardId: componentId,
+                locationId: location.location_id
+            });
+            webSocket.removeLocationHandler(location.location_id);
         };
     }, [
-        connectionParams, 
-        webSocket, 
-        handleMessage, 
-        handleError, 
-        logger, 
-        isConnected, 
-        isAuthenticated, 
-        user?.token,
+        location?.location_id,
+        webSocket,
+        handleMessage,
+        handleError,
+        isAuthenticated,
+        logger,
         componentId
     ]);
 
-    // Handle auth state changes
-    useEffect(() => {
-        if (!isAuthenticated) {
-            setIsConnected(false);
-            setWeather(null);
-            setLoading(true);
-        }
-    }, [isAuthenticated]);
-
+    // Handle refresh button click
     const handleRefresh = useCallback(() => {
         if (!isAuthenticated) {
             handleError("Not authenticated");
             return;
         }
+
+        setWeatherState(prev => ({ ...prev, loading: true }));
+        const success = webSocket.refreshWeather([location.location_id]);
         
-        setLoading(true);
-        const success = webSocket.refreshWeather(connectionParams.cityName, connectionParams);
         if (!success) {
-            handleError("Connection lost. Attempting to reconnect...");
-            webSocket.connect({
-                ...connectionParams,
-                onMessage: handleMessage,
-                onError: handleError
-            });
+            handleError("Unable to refresh weather data");
         }
-    }, [
-        connectionParams, 
-        webSocket, 
-        handleMessage, 
-        handleError, 
-        isAuthenticated
-    ]);
+    }, [location.location_id, webSocket, handleError, isAuthenticated]);
 
-    const loadingMessage = isConnected ? "Loading weather data..." : "Connecting to server...";
-
-    // Render weather details
-    const renderWeatherDetails = useMemo(() => {
-        if (loading) {
-            return (
-                <div className="text-center">
-                    <Spinner animation="border" role="status" className="mb-2" />
-                    <div>{loadingMessage}</div>
-                </div>
-            );
-        }
-
-        if (error) {
-            return (
-                <>
-                    <div className="text-danger my-3">{error}</div>
-                    <Button variant="outline-danger" size="sm" onClick={() => onRemove(location.location_id)}>
-                        Remove
-                    </Button>
-                </>
-            );
-        }
-
-        return weather ? (
-            <>
-                <Card.Text as="div">
-                    <div className="mb-2">
-                        <strong>Temperature:</strong> {weather.temperature}°F
+    // Render loading state
+    if (weatherState.loading) {
+        return (
+            <Card className="h-100">
+                <Card.Body>
+                    <Card.Title className="d-flex justify-content-between align-items-start">
+                        {location.city_name}
+                        <Button 
+                            variant="outline-danger" 
+                            size="sm" 
+                            onClick={() => onRemove(location.location_id)}
+                        >
+                            Remove
+                        </Button>
+                    </Card.Title>
+                    <div className="text-center">
+                        <Spinner animation="border" role="status" className="mb-2" />
+                        <div>Loading weather data...</div>
                     </div>
-                    <div className="mb-2">
-                        <strong>Condition:</strong> {weather.condition}
-                    </div>
-                    <div className="mb-2">
-                        <strong>Humidity:</strong> {weather.humidity}%
-                    </div>
-                    <div>
-                        <strong>Wind Speed:</strong> {weather.windSpeed} MPH
-                    </div>
-                </Card.Text>
-                <div className="text-muted mt-3">
-                    <small>
-                        Last updated: {weather.timestamp ? new Date(weather.timestamp).toLocaleTimeString() : "Never"}
-                    </small>
-                </div>
-                <Button 
-                    variant="outline-secondary" 
-                    size="sm" 
-                    onClick={handleRefresh} 
-                    className="mt-2"
-                >
-                    Refresh
-                </Button>
-            </>
-        ) : (
-            <div className="text-muted">No weather data available</div>
+                </Card.Body>
+            </Card>
         );
-    }, [weather, loading, error, loadingMessage, handleRefresh, location.location_id, onRemove]);
+    }
 
+    // Render error state
+    if (weatherState.error) {
+        return (
+            <Card className="h-100">
+                <Card.Body>
+                    <Card.Title className="d-flex justify-content-between align-items-start">
+                        {location.city_name}
+                        <Button 
+                            variant="outline-danger" 
+                            size="sm" 
+                            onClick={() => onRemove(location.location_id)}
+                        >
+                            Remove
+                        </Button>
+                    </Card.Title>
+                    <div className="text-danger my-3">{weatherState.error}</div>
+                    <Button variant="outline-secondary" size="sm" onClick={handleRefresh}>
+                        Retry
+                    </Button>
+                </Card.Body>
+            </Card>
+        );
+    }
+
+    // Render weather data
     return (
         <Card className="h-100">
             <Card.Body>
@@ -255,7 +176,35 @@ export const WeatherCard = React.memo(({ location, onRemove }) => {
                         Remove
                     </Button>
                 </Card.Title>
-                {renderWeatherDetails}
+                <Card.Text as="div">
+                    <div className="mb-2">
+                        <strong>Temperature:</strong> {weatherState.data?.temperature}°F
+                    </div>
+                    <div className="mb-2">
+                        <strong>Condition:</strong> {weatherState.data?.condition}
+                    </div>
+                    <div className="mb-2">
+                        <strong>Humidity:</strong> {weatherState.data?.humidity}%
+                    </div>
+                    <div>
+                        <strong>Wind Speed:</strong> {weatherState.data?.windSpeed} MPH
+                    </div>
+                </Card.Text>
+                <div className="text-muted mt-3">
+                    <small>
+                        Last updated: {weatherState.data?.timestamp 
+                            ? new Date(weatherState.data.timestamp).toLocaleTimeString() 
+                            : "Never"}
+                    </small>
+                </div>
+                <Button 
+                    variant="outline-secondary" 
+                    size="sm" 
+                    onClick={handleRefresh} 
+                    className="mt-2"
+                >
+                    Refresh
+                </Button>
             </Card.Body>
         </Card>
     );
