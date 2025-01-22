@@ -153,7 +153,7 @@ class WebSocketService {
     }
 
     return this.ws;
-}
+  }
 
   handleConnectionError() {
     // Notify all handlers of the error
@@ -182,42 +182,52 @@ class WebSocketService {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = setTimeout(() => {
         if (this.userId) {
-          const token = localStorage.getItem("authToken");  // Use consistent storage key
+          const token = localStorage.getItem("authToken"); // Use consistent storage key
           this.connect({ token, userId: this.userId });
         }
       }, delay);
     }
-}
-
-  getStoredToken() {
-    // Implement based on your auth storage mechanism
-    return localStorage.getItem("auth_token");
   }
 
   subscribeAllLocations(token) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     try {
-        const locations = Array.from(this.messageHandlers.keys());
-        
-        if (locations.length > 0) {
-            this.logger.debug('Subscribing to locations', { 
-                locationCount: locations.length,
-                locations
-            });
+      const locations = Array.from(this.messageHandlers.keys());
 
-            this.ws.send(JSON.stringify({
-                action: 'getWeather',
-                locations,
-                token  // Include the token here
-            }));
-        }
-    } catch (error) {
-        this.logger.error('Error subscribing to locations', {
-            error: error.message
+      if (locations.length > 0) {
+        this.logger.debug("Subscribing to locations", {
+          locationCount: locations.length,
+          locations,
         });
+
+        // Retrieve the token from storage if not provided
+        const currentToken = token || this.getStoredToken();
+
+        if (!currentToken) {
+          this.logger.error("No token available for location subscription");
+          return;
+        }
+
+        this.ws.send(
+          JSON.stringify({
+            action: "getWeather",
+            locations,
+            token: currentToken, // Explicitly pass the token
+          })
+        );
+      }
+    } catch (error) {
+      this.logger.error("Error subscribing to locations", {
+        error: error.message,
+      });
     }
-}
+  }
+
+  getStoredToken() {
+    // Use the key from your AuthContext
+    return localStorage.getItem("authToken");
+  }
 
   // Add a method to get active location IDs
   getActiveLocationIds() {
@@ -240,22 +250,30 @@ class WebSocketService {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
 
     try {
-      this.ws.send(
-        JSON.stringify({
-          action: "getWeather",
-          locations: Array.isArray(locationIds) ? locationIds : [locationIds],
-          token,
-        })
-      );
-      return true;
+        // Retrieve the token from storage if not provided
+        const currentToken = token || this.getStoredToken();
+
+        if (!currentToken) {
+            this.logger.error('No token available for weather refresh');
+            return false;
+        }
+
+        this.ws.send(
+            JSON.stringify({
+                action: "getWeather",
+                locations: Array.isArray(locationIds) ? locationIds : [locationIds],
+                token: currentToken,
+            })
+        );
+        return true;
     } catch (error) {
-      this.logger.error("Error refreshing weather", {
-        error: error.message,
-        locationIds,
-      });
-      return false;
+        this.logger.error("Error refreshing weather", {
+            error: error.message,
+            locationIds,
+        });
+        return false;
     }
-  }
+}
 
   cleanup() {
     this.logger.info("Starting WebSocket cleanup", { userId: this.userId });
@@ -283,33 +301,33 @@ class WebSocketService {
 }
 
 export function WebSocketProvider({ children }) {
-    const { user } = useAuth();
-    const logger = useLogger();
-    const webSocketService = useMemo(
-      () => new WebSocketService(logger),
-      [logger]
-    );
-  
-    useEffect(() => {
-        if (user?.token && user?.id) {
-          webSocketService.connect({
-            token: user.token
-          });
-        } else {
-          webSocketService.cleanup();
-        }
-    
-        return () => {
-          webSocketService.cleanup();
-        };
-    }, [user, webSocketService]);
-  
-    return (
-      <WebSocketContext.Provider value={webSocketService}>
-        {children}
-      </WebSocketContext.Provider>
-    );
-  }
+  const { user } = useAuth();
+  const logger = useLogger();
+  const webSocketService = useMemo(
+    () => new WebSocketService(logger),
+    [logger]
+  );
+
+  useEffect(() => {
+    if (user?.token && user?.id) {
+      webSocketService.connect({
+        token: user.token,
+      });
+    } else {
+      webSocketService.cleanup();
+    }
+
+    return () => {
+      webSocketService.cleanup();
+    };
+  }, [user, webSocketService]);
+
+  return (
+    <WebSocketContext.Provider value={webSocketService}>
+      {children}
+    </WebSocketContext.Provider>
+  );
+}
 
 export function useWebSocket() {
   const context = useContext(WebSocketContext);
