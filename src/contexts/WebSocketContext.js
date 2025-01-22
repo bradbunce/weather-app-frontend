@@ -48,8 +48,9 @@ class WebSocketService {
                         const data = JSON.parse(event.data);
                         
                         // Extract city name from the message data
-                        const weatherData = data.data?.[0];
-                        const messageCityName = weatherData?.name;
+                        const messageCityName = data.cityName || 
+                                                 data.data?.[0]?.name || 
+                                                 data.data?.name;
                         
                         this.logger.debug('WebSocket message received', {
                             messageType: data.type,
