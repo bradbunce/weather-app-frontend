@@ -54,7 +54,24 @@ class WebSocketService {
                             type: message.type,
                             dataCount: message.data?.length
                         });
-    
+                
+                        // Handle error messages specifically
+                        if (message.type === 'error') {
+                            this.logger.error('WebSocket Error Message', {
+                                message: message.message,
+                                code: message.code
+                            });
+                
+                            // Optional: Show user-friendly error notification
+                            if (message.code === 'NO_TOKEN') {
+                                // Trigger reconnection or logout
+                                this.handleConnectionError();
+                            }
+                            
+                            return;
+                        }
+                
+                        // Handle weather updates
                         if (Array.isArray(message.data)) {
                             message.data.forEach(locationData => {
                                 const id = parseInt(locationData.id);
@@ -163,32 +180,32 @@ class WebSocketService {
 
     subscribeAllLocations(token) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
+    
         try {
-            const locations = Array.from(this.messageHandlers.keys());
+            const locations = this.getActiveLocationIds();
             
             if (locations.length > 0) {
-                this.logger.debug('Subscribing to all locations', { 
+                this.logger.debug('Subscribing to locations', { 
                     locationCount: locations.length,
-                    userId: this.userId
+                    locations
                 });
-
+    
                 this.ws.send(JSON.stringify({
-                    action: 'subscribe',
+                    action: 'getWeather',
                     locations,
-                    token,
-                    isInitial: true
+                    token  // Include the token here
                 }));
-
-                // Request initial weather data for all locations
-                this.refreshWeather(locations, token);
             }
         } catch (error) {
             this.logger.error('Error subscribing to locations', {
-                error: error.message,
-                userId: this.userId
+                error: error.message
             });
         }
+    }
+    
+    // Add a method to get active location IDs
+    getActiveLocationIds() {
+        return Array.from(this.messageHandlers.keys());
     }
 
     addLocationHandler(locationId, handlers) {
