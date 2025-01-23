@@ -7,7 +7,6 @@ const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;
 const LocationsContext = createContext(null);
 
 // Configure axios defaults
-axios.defaults.headers.common['Authorization'] = `Bearer ${localStorage.getItem('token')}`;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 export const LocationsProvider = ({ children }) => {
@@ -95,21 +94,22 @@ export const LocationsProvider = ({ children }) => {
       const maxAttempts = 10;
       
       while (attempts < maxAttempts) {
-        const token = localStorage.getItem('token');
-        const pollResponse = await axios.get(`${LOCATIONS_API_URL}/locations/${locationId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const locationData = pollResponse.data;
+        const pollResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
+        const pollLocations = Array.isArray(pollResponse.data) 
+          ? pollResponse.data 
+          : pollResponse.data?.locations || [];
           
-        if (locationData?.temp_f && 
-            locationData?.humidity && 
-            locationData?.condition_text && 
-            locationData?.wind_mph) {
+        const foundLocation = pollLocations.find(loc => loc.location_id === locationId);
+        
+        if (foundLocation?.temp_f && 
+            foundLocation?.humidity && 
+            foundLocation?.condition_text && 
+            foundLocation?.wind_mph) {
           
           setLocations(currentLocations => 
             currentLocations.map(loc => 
               loc.location_id === locationId 
-                ? { ...locationData, loading: false }
+                ? { ...foundLocation, loading: false }
                 : loc
             )
           );
