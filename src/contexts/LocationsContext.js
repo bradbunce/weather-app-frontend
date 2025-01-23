@@ -102,7 +102,8 @@ export const LocationsProvider = ({ children }) => {
         const locationsResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
         const locationWithWeather = locationsResponse.data.find(loc => loc.location_id === locationId);
         
-        if (locationWithWeather?.condition_text) {
+        if (locationWithWeather?.temp_f && locationWithWeather?.humidity && 
+            locationWithWeather?.condition_text && locationWithWeather?.wind_mph) {
           setLocations(prev => [...prev, locationWithWeather]);
           logger.info("Location added with weather data", { location: locationWithWeather });
           return true;
