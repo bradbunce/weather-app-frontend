@@ -82,7 +82,6 @@ export const LocationsProvider = ({ children }) => {
 
   const addLocation = useCallback(async (locationData) => {
     try {
-      setIsLoading(true);
       setError(null);
   
       const response = await axios.post(
@@ -98,7 +97,7 @@ export const LocationsProvider = ({ children }) => {
       };
       setLocations(prev => [...prev, initialLocation]);
   
-      // Poll for weather in background
+      // Poll for weather in background without setting global loading state
       let attempts = 0;
       const maxAttempts = 10;
       
@@ -125,33 +124,32 @@ export const LocationsProvider = ({ children }) => {
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add location");
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
   const removeLocation = useCallback(async (locationId) => {
     try {
-      setIsLoading(true);
       setError(null);
       
-      await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`);
-      
+      // Remove location immediately for better UX
       setLocations(prev => prev.filter(loc => loc.location_id !== locationId));
+      
+      // Then make the API call
+      await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`);
       logger.info("Location removed successfully", { locationId });
       
       return true;
     } catch (err) {
+      // If API call fails, revert the removal
+      await fetchLocations();
       logger.error("Failed to remove location", {
         error: err.message,
         locationId
       });
       setError(err.response?.data?.message || "Failed to remove location");
       throw err;
-    } finally {
-      setIsLoading(false);
     }
-  }, [logger]);
+  }, [logger, fetchLocations]);
 
   const value = {
     locations,
