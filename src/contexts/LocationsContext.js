@@ -6,7 +6,6 @@ import { useLogger } from '../utils/logger';
 const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;
 const LocationsContext = createContext(null);
 
-// Configure axios defaults
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 export const LocationsProvider = ({ children }) => {
@@ -72,74 +71,24 @@ export const LocationsProvider = ({ children }) => {
   const addLocation = useCallback(async (newLocationData) => {
     try {
       setError(null);
-  
-      const response = await axios.post(
+      await axios.post(
         `${LOCATIONS_API_URL}/locations`,
         newLocationData
       );
-      
-      const locationId = response.data.location_id;
-      
-      // Add the new location immediately with loading state
-      setLocations(currentLocations => [
-        ...currentLocations,
-        {
-          ...newLocationData,
-          location_id: locationId,
-          loading: true
-        }
-      ]);
-      
-      let attempts = 0;
-      const maxAttempts = 10;
-      
-      while (attempts < maxAttempts) {
-        const pollResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
-        const pollLocations = Array.isArray(pollResponse.data) 
-          ? pollResponse.data 
-          : pollResponse.data?.locations || [];
-          
-        const foundLocation = pollLocations.find(loc => loc.location_id === locationId);
-        
-        if (foundLocation?.temp_f && 
-            foundLocation?.humidity && 
-            foundLocation?.condition_text && 
-            foundLocation?.wind_mph) {
-          
-          setLocations(currentLocations => 
-            currentLocations.map(loc => 
-              loc.location_id === locationId 
-                ? { ...foundLocation, loading: false }
-                : loc
-            )
-          );
-          
-          return true;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        attempts++;
-      }
-      
-      logger.warn("Weather data not available after polling", { locationId });
-      // Keep the location and let WebSocket handle the update
+      await fetchLocations();
       return true;
-      
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add location");
       throw err;
     }
-  }, [logger]);
+  }, [fetchLocations, setError]);
 
   const removeLocation = useCallback(async (locationId) => {
     try {
       setError(null);
-      
       setLocations(prev => prev.filter(loc => loc.location_id !== locationId));
-      
       await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`);
       logger.info("Location removed successfully", { locationId });
-      
       return true;
     } catch (err) {
       await fetchLocations();
@@ -152,13 +101,11 @@ export const LocationsProvider = ({ children }) => {
     }
   }, [logger, fetchLocations]);
 
-  // Register login callback
   useEffect(() => {
     logger.debug("Registering locations fetch callback with auth context");
     registerLoginCallback(fetchLocations);
   }, [registerLoginCallback, fetchLocations, logger]);
 
-  // Initial fetch
   useEffect(() => {
     if (user?.username) {
       setIsLoading(true);
