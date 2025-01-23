@@ -6,6 +6,16 @@ import { useAuth } from "../contexts/AuthContext";
 import { useLocations } from "../contexts/LocationsContext";
 import { LoadingSpinner } from './LoadingSpinner';
 
+const LocationGrid = React.memo(({ locations, onRemove }) => (
+ <Row xs={1} md={2} lg={3} className="g-4">
+   {locations.map((location) => (
+     <Col key={location.location_id}>
+       <WeatherCard location={location} onRemove={onRemove} />
+     </Col>
+   ))}
+ </Row>
+));
+
 export const Dashboard = () => {
  const [newLocation, setNewLocation] = useState("");
  const [showSpinner, setShowSpinner] = useState(false);
@@ -147,52 +157,46 @@ export const Dashboard = () => {
  }
 
  return (
-   <Container>
-     <DebugPanel />
-     <h2 className="mb-4">My Weather Dashboard</h2>
-     <Form onSubmit={handleAddLocation} className="mb-4">
-       <Row className="align-items-center">
-         <Col sm={8} md={6}>
-           <Form.Group>
-             <Form.Control
-               type="text"
-               placeholder="Enter city name"
-               value={newLocation}
-               onChange={(e) => setNewLocation(e.target.value)}
-             />
-           </Form.Group>
-         </Col>
-         <Col sm={4} md={2}>
-           <Button
-             type="submit"
-             variant="primary"
-             disabled={!newLocation.trim()}
-           >
-             Add Location
-           </Button>
-         </Col>
-       </Row>
-     </Form>
+  <Container>
+    <DebugPanel />
+    <h2 className="mb-4">My Weather Dashboard</h2>
+    <Form onSubmit={handleAddLocation} className="mb-4">
+      <Row className="align-items-center">
+        <Col sm={8} md={6}>
+          <Form.Group>
+            <Form.Control
+              type="text"
+              placeholder="Enter city name"
+              value={newLocation}
+              onChange={(e) => setNewLocation(e.target.value)}
+            />
+          </Form.Group>
+        </Col>
+        <Col sm={4} md={2}>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={!newLocation.trim()}
+          >
+            Add Location
+          </Button>
+        </Col>
+      </Row>
+    </Form>
 
-     {error && (
-       <Alert variant="danger" dismissible onClose={clearError}>
-         {error}
-       </Alert>
-     )}
+    {error && (
+      <Alert variant="danger" dismissible onClose={clearError}>
+        {error}
+      </Alert>
+    )}
 
-     {locations.map((location) => (
-       <WeatherCard 
-         key={location.location_id}
-         location={location} 
-         onRemove={memoizedRemoveLocation} 
-       />
-     ))}
+    <LocationGrid locations={locations} onRemove={memoizedRemoveLocation} />
 
-     {showNoLocations && (
-       <Alert variant="info">
-         No locations added yet. Add a city to get started!
-       </Alert>
-     )}
-   </Container>
- );
+    {showNoLocations && (
+      <Alert variant="info">
+        No locations added yet. Add a city to get started!
+      </Alert>
+    )}
+  </Container>
+);
 };
