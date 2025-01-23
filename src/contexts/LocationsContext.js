@@ -80,25 +80,34 @@ export const LocationsProvider = ({ children }) => {
     }
   }, [user?.username, fetchLocations]);
 
-  const addLocation = useCallback(async (locationData) => {
+  const addLocation = useCallback(async (newLocationData) => {
     try {
       setError(null);
   
       // Post new location
       const response = await axios.post(
         `${LOCATIONS_API_URL}/locations`,
-        locationData
+        newLocationData
       );
       
       // Get the location_id from the response
       const locationId = response.data.location_id;
       
-      // Get the location data with weather from the GET endpoint
-      const locationResponse = await axios.get(`${LOCATIONS_API_URL}/locations/${locationId}`);
-      const locationWithWeather = locationResponse.data;
+      // Get all locations to get the updated data including weather
+      const locationsResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
       
-      // Add the location with weather data
-      setLocations(prev => [...prev, locationWithWeather]);
+      let allLocations;
+      if (locationsResponse.data?.locations) {
+        allLocations = locationsResponse.data.locations;
+      } else if (Array.isArray(locationsResponse.data)) {
+        allLocations = locationsResponse.data;
+      }
+      
+      // Find the newly added location with weather data
+      const locationWithWeather = allLocations.find(loc => loc.location_id === locationId);
+      if (locationWithWeather) {
+        setLocations(prev => [...prev, locationWithWeather]);
+      }
       return true;
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add location");
