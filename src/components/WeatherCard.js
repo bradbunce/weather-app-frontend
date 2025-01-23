@@ -33,16 +33,15 @@ export const WeatherCard = React.memo(
         if (message.data) {
           setWeatherState((prev) => ({
             ...prev,
-            data: message.data,
+            data: {
+              temperature: message.data.temp_f,
+              condition: message.data.condition_text,
+              humidity: message.data.humidity,
+              windSpeed: message.data.wind_mph,
+              timestamp: message.data.last_updated
+            },
             loading: false,
             error: "",
-            isConnected: true,
-          }));
-        } else {
-          setWeatherState((prev) => ({
-            ...prev,
-            loading: false,
-            error: "No data available for this location",
             isConnected: true,
           }));
         }
