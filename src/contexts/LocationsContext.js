@@ -104,7 +104,11 @@ export const LocationsProvider = ({ children }) => {
         
         if (locationWithWeather?.temp_f && locationWithWeather?.humidity && 
             locationWithWeather?.condition_text && locationWithWeather?.wind_mph) {
-          setLocations(prev => [...prev, locationWithWeather]);
+          setLocations(prev => {
+            // Filter out any existing version of this location and add the new one
+            const existingLocations = prev.filter(loc => loc.location_id !== locationWithWeather.location_id);
+            return [...existingLocations, locationWithWeather];
+          });
           logger.info("Location added with weather data", { location: locationWithWeather });
           return true;
         }
