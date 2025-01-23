@@ -1,10 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
 import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useLocations } from "../contexts/LocationsContext";
 import { LoadingSpinner } from './LoadingSpinner';
+
+const LocationGrid = React.memo(({ locations, onRemove }) => (
+  <Row xs={1} md={2} lg={3} className="g-4">
+    {locations.map((location) => (
+      <Col key={location.location_id}>
+        <WeatherCard location={location} onRemove={onRemove} />
+      </Col>
+    ))}
+  </Row>
+));
 
 export const Dashboard = () => {
   const [newLocation, setNewLocation] = useState("");
@@ -20,6 +30,8 @@ export const Dashboard = () => {
     clearError 
   } = useLocations();
 
+  const memoizedLocations = useMemo(() => locations, [locations]);
+
   useEffect(() => {
     let loadingTimer;
     let noLocationsTimer;
@@ -31,7 +43,6 @@ export const Dashboard = () => {
     } else {
       setShowSpinner(false);
 
-      // Only show "No locations" if loading is complete and no locations exist
       if (locations.length === 0 && !error) {
         noLocationsTimer = setTimeout(() => {
           setShowNoLocations(true);
@@ -179,13 +190,7 @@ export const Dashboard = () => {
         </Alert>
       )}
 
-      <Row xs={1} md={2} lg={3} className="g-4">
-        {locations.map((location) => (
-          <Col key={location.location_id}>
-            <WeatherCard location={location} onRemove={removeLocation} />
-          </Col>
-        ))}
-      </Row>
+      <LocationGrid locations={memoizedLocations} onRemove={removeLocation} />
 
       {showNoLocations && (
         <Alert variant="info">
