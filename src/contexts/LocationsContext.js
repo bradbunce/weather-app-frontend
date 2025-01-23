@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import axios from 'axios';
 import { useAuth } from './AuthContext';
 import { useLogger } from '../utils/logger';
+import { useWebSocket } from './WebSocketContext';
 
 const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;
 const LocationsContext = createContext(null);
@@ -14,6 +15,7 @@ export const LocationsProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const { user, registerLoginCallback } = useAuth();
   const logger = useLogger();
+  const webSocket = useWebSocket();
 
   const fetchLocations = useCallback(async () => {
     if (!user?.username) {
@@ -100,6 +102,27 @@ export const LocationsProvider = ({ children }) => {
       throw err;
     }
   }, [logger, fetchLocations]);
+
+  useEffect(() => {
+    if (webSocket) {
+      webSocket.addLocationHandler('locations', {
+        onMessage: (msg) => {
+          if (msg.type === 'locationUpdate') {
+            setLocations(msg.data);
+            logger.info("Locations updated via WebSocket", { 
+              count: msg.data.length 
+            });
+          }
+        },
+        onError: (error) => {
+          logger.error("WebSocket location error", { error });
+          setError("Lost connection to weather updates");
+        }
+      });
+
+      return () => webSocket.removeLocationHandler('locations');
+    }
+  }, [webSocket, logger]);
 
   useEffect(() => {
     logger.debug("Registering locations fetch callback with auth context");
