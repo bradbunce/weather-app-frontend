@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
 import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
@@ -110,8 +110,6 @@ const DebugPanel = React.memo(({ user, locations }) => {
 });
 
 export const Dashboard = () => {
-  const [showSpinner, setShowSpinner] = useState(false);
-  const [showNoLocations, setShowNoLocations] = useState(false);
   const { user, isLoading: isAuthLoading } = useAuth();
   const { 
     locations, 
@@ -126,13 +124,12 @@ export const Dashboard = () => {
     removeLocation(locationId);
   }, [removeLocation]);
 
-  useEffect(() => {
-    // Only show spinner for location loading, not auth loading
-    setShowSpinner(!isAuthLoading && isLoading);
-    setShowNoLocations(!isLoading && locations.length === 0 && !error);
-  }, [isLoading, isAuthLoading, locations.length, error]);
-
   const dashboardContent = useMemo(() => {
+    // Don't render anything during auth loading
+    if (isAuthLoading) {
+      return null;
+    }
+
     if (!user) {
       return (
         <Alert variant="warning">
@@ -141,18 +138,17 @@ export const Dashboard = () => {
       );
     }
 
-    // Don't show dashboard content during auth loading
-    if (isAuthLoading) {
-      return null;
+    // Only show locations loading spinner when needed
+    if (isLoading) {
+      return (
+        <div className="d-flex justify-content-center py-5">
+          <LoadingSpinner />
+        </div>
+      );
     }
 
     return (
       <>
-        {showSpinner && (
-          <div className="d-flex justify-content-center py-5">
-            <LoadingSpinner />
-          </div>
-        )}
         <DebugPanel user={user} locations={locations} />
         <h2 className="mb-4">My Weather Dashboard</h2>
         
@@ -169,7 +165,7 @@ export const Dashboard = () => {
           onRemove={memoizedRemoveLocation} 
         />
 
-        {showNoLocations && (
+        {locations.length === 0 && !error && (
           <Alert variant="info">
             No locations added yet. Add a city to get started!
           </Alert>
@@ -179,12 +175,11 @@ export const Dashboard = () => {
   }, [
     user,
     isAuthLoading,
-    showSpinner,
+    isLoading,
     locations,
     error,
     clearError,
     memoizedRemoveLocation,
-    showNoLocations,
     addLocation
   ]);
 
