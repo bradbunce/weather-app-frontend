@@ -86,15 +86,21 @@ export const LocationsProvider = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-
+  
       const response = await axios.post(
         `${LOCATIONS_API_URL}/locations`,
         locationData
       );
-
       const locationId = response.data.location_id;
-      
-      // Poll for weather data
+  
+      // Add location immediately without weather
+      const initialLocation = {
+        location_id: locationId,
+        ...locationData
+      };
+      setLocations(prev => [...prev, initialLocation]);
+  
+      // Poll for weather in background
       let attempts = 0;
       const maxAttempts = 10;
       
@@ -102,14 +108,14 @@ export const LocationsProvider = ({ children }) => {
         const locationsResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
         const locationWithWeather = locationsResponse.data.find(loc => loc.location_id === locationId);
         
-        if (locationWithWeather?.temp_f && locationWithWeather?.humidity && 
-            locationWithWeather?.condition_text && locationWithWeather?.wind_mph) {
-          setLocations(prev => {
-            // Filter out any existing version of this location and add the new one
-            const existingLocations = prev.filter(loc => loc.location_id !== locationWithWeather.location_id);
-            return [...existingLocations, locationWithWeather];
-          });
-          logger.info("Location added with weather data", { location: locationWithWeather });
+        if (locationWithWeather?.temp_f && 
+            locationWithWeather?.humidity && 
+            locationWithWeather?.condition_text && 
+            locationWithWeather?.wind_mph) {
+          
+          setLocations(prev => prev.map(loc => 
+            loc.location_id === locationId ? locationWithWeather : loc
+          ));
           return true;
         }
         
@@ -117,26 +123,14 @@ export const LocationsProvider = ({ children }) => {
         attempts++;
       }
       
-      // If we couldn't get weather data, add location without it
-      const addedLocation = {
-        location_id: locationId,
-        ...locationData,
-      };
-      setLocations(prev => [...prev, addedLocation]);
-      logger.warn("Location added but weather data not available", { location: addedLocation });
-      
       return true;
     } catch (err) {
-      logger.error("Failed to add location", {
-        error: err.message,
-        location: locationData
-      });
       setError(err.response?.data?.message || "Failed to add location");
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [logger]);
+  }, []);
 
   const removeLocation = useCallback(async (locationId) => {
     try {

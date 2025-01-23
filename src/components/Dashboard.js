@@ -124,70 +124,95 @@ export const Dashboard = () => {
   }, [newLocation, user?.username, addLocation]);
 
   useEffect(() => {
+    console.log('Loading effect triggered:', { 
+      isLoading, 
+      locationsCount: locations.length, 
+      error 
+    });
+  
     let loadingTimer;
     let noLocationsTimer;
-
+  
     if (isLoading) {
+      console.log('Setting loading timer');
       loadingTimer = setTimeout(() => {
+        console.log('Loading timer fired - showing spinner');
         setShowSpinner(true);
       }, 2000);
     } else {
+      console.log('Clearing spinner');
       setShowSpinner(false);
-
+  
       if (locations.length === 0 && !error) {
+        console.log('Setting no locations timer');
         noLocationsTimer = setTimeout(() => {
+          console.log('No locations timer fired');
           setShowNoLocations(true);
         }, 2000);
       } else {
+        console.log('Hiding no locations alert');
         setShowNoLocations(false);
       }
     }
-
+  
     return () => {
+      console.log('Cleanup - clearing timers');
       clearTimeout(loadingTimer);
       clearTimeout(noLocationsTimer);
     };
   }, [isLoading, locations.length, error]);
 
   const dashboardContent = useMemo(() => {
+    console.log('Recalculating dashboardContent with deps:', {
+      userExists: !!user,
+      showSpinner,
+      locationsCount: locations.length,
+      newLocation,
+      error,
+      showNoLocations
+    });
+  
     if (!user) {
+      console.log('User not logged in - showing warning');
       return (
         <Alert variant="warning">
           Please log in to view your weather dashboard.
         </Alert>
       );
     }
-
+  
     if (showSpinner) {
+      console.log('Showing spinner');
       return (
         <div className="d-flex justify-content-center py-5">
           <LoadingSpinner />
         </div>
       );
     }
-
+  
+    console.log('Rendering main dashboard content');
     return (
       <>
         <DebugPanel user={user} locations={locations} />
         <h2 className="mb-4">My Weather Dashboard</h2>
         
-        <FormSection 
+        <FormSection
           handleAddLocation={handleAddLocation}
           newLocation={newLocation}
           setNewLocation={setNewLocation}
         />
-
+  
         {error && (
           <Alert variant="danger" dismissible onClose={clearError}>
             {error}
           </Alert>
         )}
-
-        <LocationGrid 
-          locations={locations} 
-          onRemove={memoizedRemoveLocation} 
+  
+        <LocationGrid
+          locations={locations}
+          onRemove={memoizedRemoveLocation}
         />
-
+  
         {showNoLocations && (
           <Alert variant="info">
             No locations added yet. Add a city to get started!
@@ -197,13 +222,13 @@ export const Dashboard = () => {
     );
   }, [
     user,
-    showSpinner, 
-    locations, 
-    handleAddLocation, 
-    newLocation, 
+    showSpinner,
+    locations,
+    handleAddLocation,
+    newLocation,
     error,
-    clearError, 
-    memoizedRemoveLocation, 
+    clearError,
+    memoizedRemoveLocation,
     showNoLocations
   ]);
 
