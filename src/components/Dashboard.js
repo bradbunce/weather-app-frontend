@@ -14,7 +14,59 @@ const LocationGrid = React.memo(({ locations, onRemove }) => (
      </Col>
    ))}
  </Row>
+), (prevProps, nextProps) => {
+ return JSON.stringify(prevProps.locations) === JSON.stringify(nextProps.locations) &&
+        prevProps.onRemove === nextProps.onRemove;
+});
+
+const FormSection = React.memo(({ handleAddLocation, newLocation, setNewLocation }) => (
+ <Form onSubmit={handleAddLocation} className="mb-4">
+   <Row className="align-items-center">
+     <Col sm={8} md={6}>
+       <Form.Group>
+         <Form.Control
+           type="text"
+           placeholder="Enter city name"
+           value={newLocation}
+           onChange={(e) => setNewLocation(e.target.value)}
+         />
+       </Form.Group>
+     </Col>
+     <Col sm={4} md={2}>
+       <Button
+         type="submit"
+         variant="primary"
+         disabled={!newLocation.trim()}
+       >
+         Add Location
+       </Button>
+     </Col>
+   </Row>
+ </Form>
 ));
+
+const DebugPanel = React.memo(({ user, locations }) => {
+ if (process.env.NODE_ENV === "production") return null;
+
+ return (
+   <div className="mb-3 p-2 bg-light border rounded">
+     <small>
+       <pre className="mb-0">
+         {JSON.stringify(
+           {
+             userExists: !!user,
+             username: user?.username,
+             hasToken: !!user?.token,
+             locationCount: locations.length,
+           },
+           null,
+           2
+         )}
+       </pre>
+     </small>
+   </div>
+ );
+});
 
 export const Dashboard = () => {
  const [newLocation, setNewLocation] = useState("");
@@ -34,33 +86,7 @@ export const Dashboard = () => {
    removeLocation(locationId);
  }, [removeLocation]);
 
- useEffect(() => {
-   let loadingTimer;
-   let noLocationsTimer;
-
-   if (isLoading) {
-     loadingTimer = setTimeout(() => {
-       setShowSpinner(true);
-     }, 2000);
-   } else {
-     setShowSpinner(false);
-
-     if (locations.length === 0 && !error) {
-       noLocationsTimer = setTimeout(() => {
-         setShowNoLocations(true);
-       }, 2000);
-     } else {
-       setShowNoLocations(false);
-     }
-   }
-
-   return () => {
-     clearTimeout(loadingTimer);
-     clearTimeout(noLocationsTimer);
-   };
- }, [isLoading, locations.length, error]);
-
- const getCountryCode = (displayName) => {
+ const getCountryCode = useCallback((displayName) => {
    const parts = displayName.split(",");
    const countryPart = parts[parts.length - 1].trim();
 
@@ -75,9 +101,9 @@ export const Dashboard = () => {
    };
 
    return countryCodeMap[countryPart] || "US";
- };
+ }, []);
 
- const handleAddLocation = async (e) => {
+ const handleAddLocation = useCallback(async (e) => {
    e.preventDefault();
    if (!newLocation.trim() || !user?.username) return;
 
@@ -111,30 +137,33 @@ export const Dashboard = () => {
    } catch (err) {
      console.error("Error adding location:", err);
    }
- };
+ }, [newLocation, user?.username, getCountryCode, addLocation]);
 
- const DebugPanel = () => {
-   if (process.env.NODE_ENV === "production") return null;
+ useEffect(() => {
+   let loadingTimer;
+   let noLocationsTimer;
 
-   return (
-     <div className="mb-3 p-2 bg-light border rounded">
-       <small>
-         <pre className="mb-0">
-           {JSON.stringify(
-             {
-               userExists: !!user,
-               username: user?.username,
-               hasToken: !!user?.token,
-               locationCount: locations.length,
-             },
-             null,
-             2
-           )}
-         </pre>
-       </small>
-     </div>
-   );
- };
+   if (isLoading) {
+     loadingTimer = setTimeout(() => {
+       setShowSpinner(true);
+     }, 2000);
+   } else {
+     setShowSpinner(false);
+
+     if (locations.length === 0 && !error) {
+       noLocationsTimer = setTimeout(() => {
+         setShowNoLocations(true);
+       }, 2000);
+     } else {
+       setShowNoLocations(false);
+     }
+   }
+
+   return () => {
+     clearTimeout(loadingTimer);
+     clearTimeout(noLocationsTimer);
+   };
+ }, [isLoading, locations.length, error]);
 
  if (!user) {
    return (
@@ -157,46 +186,32 @@ export const Dashboard = () => {
  }
 
  return (
-  <Container>
-    <DebugPanel />
-    <h2 className="mb-4">My Weather Dashboard</h2>
-    <Form onSubmit={handleAddLocation} className="mb-4">
-      <Row className="align-items-center">
-        <Col sm={8} md={6}>
-          <Form.Group>
-            <Form.Control
-              type="text"
-              placeholder="Enter city name"
-              value={newLocation}
-              onChange={(e) => setNewLocation(e.target.value)}
-            />
-          </Form.Group>
-        </Col>
-        <Col sm={4} md={2}>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={!newLocation.trim()}
-          >
-            Add Location
-          </Button>
-        </Col>
-      </Row>
-    </Form>
+   <Container>
+     <DebugPanel user={user} locations={locations} />
+     <h2 className="mb-4">My Weather Dashboard</h2>
+     
+     <FormSection 
+       handleAddLocation={handleAddLocation}
+       newLocation={newLocation}
+       setNewLocation={setNewLocation}
+     />
 
-    {error && (
-      <Alert variant="danger" dismissible onClose={clearError}>
-        {error}
-      </Alert>
-    )}
+     {error && (
+       <Alert variant="danger" dismissible onClose={clearError}>
+         {error}
+       </Alert>
+     )}
 
-    <LocationGrid locations={locations} onRemove={memoizedRemoveLocation} />
+     <LocationGrid 
+       locations={locations} 
+       onRemove={memoizedRemoveLocation} 
+     />
 
-    {showNoLocations && (
-      <Alert variant="info">
-        No locations added yet. Add a city to get started!
-      </Alert>
-    )}
-  </Container>
-);
+     {showNoLocations && (
+       <Alert variant="info">
+         No locations added yet. Add a city to get started!
+       </Alert>
+     )}
+   </Container>
+ );
 };
