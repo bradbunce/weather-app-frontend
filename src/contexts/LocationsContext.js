@@ -77,37 +77,35 @@ export const LocationsProvider = ({ children }) => {
       
       const locationId = response.data.location_id;
       
+      // Add the new location immediately with loading state
+      setLocations(currentLocations => [
+        ...currentLocations,
+        {
+          ...newLocationData,
+          location_id: locationId,
+          loading: true
+        }
+      ]);
+      
       let attempts = 0;
       const maxAttempts = 10;
       
       while (attempts < maxAttempts) {
-        const pollResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
-        const pollLocations = Array.isArray(pollResponse.data) 
-          ? pollResponse.data 
-          : pollResponse.data?.locations || [];
+        const pollResponse = await axios.get(`${LOCATIONS_API_URL}/locations/${locationId}`);
+        const locationData = pollResponse.data;
           
-        const foundLocation = pollLocations.find(loc => loc.location_id === locationId);
-        
-        if (foundLocation?.temp_f && 
-            foundLocation?.humidity && 
-            foundLocation?.condition_text && 
-            foundLocation?.wind_mph) {
+        if (locationData?.temp_f && 
+            locationData?.humidity && 
+            locationData?.condition_text && 
+            locationData?.wind_mph) {
           
-          setLocations(currentLocations => {
-            const locationExists = currentLocations.some(
-              loc => loc.location_id === foundLocation.location_id
-            );
-            
-            if (locationExists) {
-              return currentLocations.map(loc =>
-                loc.location_id === foundLocation.location_id
-                  ? {...foundLocation}
-                  : {...loc}
-              );
-            }
-            
-            return [...currentLocations.map(loc => ({...loc})), {...foundLocation}];
-          });
+          setLocations(currentLocations => 
+            currentLocations.map(loc => 
+              loc.location_id === locationId 
+                ? { ...locationData, loading: false }
+                : loc
+            )
+          );
           
           return true;
         }
@@ -115,6 +113,11 @@ export const LocationsProvider = ({ children }) => {
         await new Promise(resolve => setTimeout(resolve, 1000));
         attempts++;
       }
+      
+      // If polling fails, remove the location
+      setLocations(currentLocations => 
+        currentLocations.filter(loc => loc.location_id !== locationId)
+      );
       
       logger.warn("Weather data not available after polling", { locationId });
       return false;
