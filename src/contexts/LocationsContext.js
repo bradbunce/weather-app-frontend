@@ -41,7 +41,7 @@ export const LocationsProvider = ({ children }) => {
         locationData = [];
       }
 
-      setLocations(locationData);
+      setLocations(locationData.map(loc => ({...loc})));
       logger.info("Locations fetched successfully", { count: locationData.length });
       
     } catch (err) {
@@ -66,61 +66,59 @@ export const LocationsProvider = ({ children }) => {
     }
   }, [user?.username, logger]);
 
-  // Register the fetchLocations callback with AuthContext
-  useEffect(() => {
-    logger.debug("Registering locations fetch callback with auth context");
-    registerLoginCallback(fetchLocations);
-  }, [registerLoginCallback, fetchLocations, logger]);
-
-  // Fetch locations when component mounts if user is already logged in
-  useEffect(() => {
-    if (user?.username) {
-      setIsLoading(true);
-      fetchLocations();
-    }
-  }, [user?.username, fetchLocations]);
-
   const addLocation = useCallback(async (newLocationData) => {
     try {
       setError(null);
   
-      // Post new location
       const response = await axios.post(
         `${LOCATIONS_API_URL}/locations`,
         newLocationData
       );
       
-      // Get the location_id from the response
       const locationId = response.data.location_id;
       
-      // Poll for weather data
       let attempts = 0;
-      const maxAttempts = 10; // Try for up to 10 seconds
-      let locationWithWeather = null;
-
+      const maxAttempts = 10;
+      
       while (attempts < maxAttempts) {
         const pollResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
-        const pollLocations = Array.isArray(pollResponse.data) ? pollResponse.data : pollResponse.data?.locations || [];
+        const pollLocations = Array.isArray(pollResponse.data) 
+          ? pollResponse.data 
+          : pollResponse.data?.locations || [];
+          
         const foundLocation = pollLocations.find(loc => loc.location_id === locationId);
         
         if (foundLocation?.temp_f && 
             foundLocation?.humidity && 
             foundLocation?.condition_text && 
             foundLocation?.wind_mph) {
-          locationWithWeather = foundLocation;
-          break;
+          
+          setLocations(currentLocations => {
+            const locationExists = currentLocations.some(
+              loc => loc.location_id === foundLocation.location_id
+            );
+            
+            if (locationExists) {
+              return currentLocations.map(loc =>
+                loc.location_id === foundLocation.location_id
+                  ? {...foundLocation}
+                  : {...loc}
+              );
+            }
+            
+            return [...currentLocations.map(loc => ({...loc})), {...foundLocation}];
+          });
+          
+          return true;
         }
         
         await new Promise(resolve => setTimeout(resolve, 1000));
         attempts++;
       }
       
-      if (locationWithWeather) {
-        setLocations(prev => [...prev, locationWithWeather]);
-      } else {
-        logger.warn("Weather data not available after polling", { locationId });
-      }
-      return true;
+      logger.warn("Weather data not available after polling", { locationId });
+      return false;
+      
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add location");
       throw err;
@@ -131,16 +129,13 @@ export const LocationsProvider = ({ children }) => {
     try {
       setError(null);
       
-      // Remove location immediately for better UX
       setLocations(prev => prev.filter(loc => loc.location_id !== locationId));
       
-      // Then make the API call
       await axios.delete(`${LOCATIONS_API_URL}/locations/${locationId}`);
       logger.info("Location removed successfully", { locationId });
       
       return true;
     } catch (err) {
-      // If API call fails, revert the removal
       await fetchLocations();
       logger.error("Failed to remove location", {
         error: err.message,
@@ -150,6 +145,20 @@ export const LocationsProvider = ({ children }) => {
       throw err;
     }
   }, [logger, fetchLocations]);
+
+  // Register login callback
+  useEffect(() => {
+    logger.debug("Registering locations fetch callback with auth context");
+    registerLoginCallback(fetchLocations);
+  }, [registerLoginCallback, fetchLocations, logger]);
+
+  // Initial fetch
+  useEffect(() => {
+    if (user?.username) {
+      setIsLoading(true);
+      fetchLocations();
+    }
+  }, [user?.username, fetchLocations]);
 
   const value = {
     locations,
