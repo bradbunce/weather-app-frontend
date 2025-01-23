@@ -121,13 +121,9 @@ export const LocationsProvider = ({ children }) => {
         attempts++;
       }
       
-      // If polling fails, remove the location
-      setLocations(currentLocations => 
-        currentLocations.filter(loc => loc.location_id !== locationId)
-      );
-      
       logger.warn("Weather data not available after polling", { locationId });
-      return false;
+      // Keep the location and let WebSocket handle the update
+      return true;
       
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add location");
