@@ -93,45 +93,39 @@ export const LocationsProvider = ({ children }) => {
       // Get the location_id from the response
       const locationId = response.data.location_id;
       
-      // Get all locations to get the updated data including weather
-      const locationsResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
-      
-      let allLocations;
-      if (locationsResponse.data?.locations) {
-        allLocations = locationsResponse.data.locations;
-      } else if (Array.isArray(locationsResponse.data)) {
-        allLocations = locationsResponse.data;
+      // Poll for weather data
+      let attempts = 0;
+      const maxAttempts = 10; // Try for up to 10 seconds
+      let locationWithWeather = null;
+
+      while (attempts < maxAttempts) {
+        const pollResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
+        const pollLocations = Array.isArray(pollResponse.data) ? pollResponse.data : pollResponse.data?.locations || [];
+        const foundLocation = pollLocations.find(loc => loc.location_id === locationId);
+        
+        if (foundLocation?.temp_f && 
+            foundLocation?.humidity && 
+            foundLocation?.condition_text && 
+            foundLocation?.wind_mph) {
+          locationWithWeather = foundLocation;
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
       }
       
-      // Find the newly added location with weather data
-      const locationWithWeather = allLocations.find(loc => loc.location_id === locationId);
-      
-      // Ensure we have weather data before updating state
-      if (locationWithWeather?.temp_f && 
-          locationWithWeather?.humidity && 
-          locationWithWeather?.condition_text && 
-          locationWithWeather?.wind_mph) {
+      if (locationWithWeather) {
         setLocations(prev => [...prev, locationWithWeather]);
       } else {
-        // If no weather data yet, try again after a short delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const retryResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
-        const retryLocations = Array.isArray(retryResponse.data) ? retryResponse.data : retryResponse.data?.locations || [];
-        const retryLocationWithWeather = retryLocations.find(loc => loc.location_id === locationId);
-        
-        if (retryLocationWithWeather?.temp_f && 
-            retryLocationWithWeather?.humidity && 
-            retryLocationWithWeather?.condition_text && 
-            retryLocationWithWeather?.wind_mph) {
-          setLocations(prev => [...prev, retryLocationWithWeather]);
-        }
+        logger.warn("Weather data not available after polling", { locationId });
       }
       return true;
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add location");
       throw err;
     }
-  }, []);
+  }, [logger]);
 
   const removeLocation = useCallback(async (locationId) => {
     try {
