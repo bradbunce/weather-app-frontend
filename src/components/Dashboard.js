@@ -127,29 +127,8 @@ export const Dashboard = () => {
   }, [removeLocation]);
 
   useEffect(() => {
-    let loadingTimer;
-    let noLocationsTimer;
-
-    if (isLoading) {
-      loadingTimer = setTimeout(() => {
-        setShowSpinner(true);
-      }, 2000);
-    } else {
-      setShowSpinner(false);
-
-      if (locations.length === 0 && !error) {
-        noLocationsTimer = setTimeout(() => {
-          setShowNoLocations(true);
-        }, 2000);
-      } else {
-        setShowNoLocations(false);
-      }
-    }
-
-    return () => {
-      clearTimeout(loadingTimer);
-      clearTimeout(noLocationsTimer);
-    };
+    setShowSpinner(isLoading);
+    setShowNoLocations(!isLoading && locations.length === 0 && !error);
   }, [isLoading, locations.length, error]);
 
   const dashboardContent = useMemo(() => {
@@ -161,16 +140,13 @@ export const Dashboard = () => {
       );
     }
 
-    if (showSpinner) {
-      return (
-        <div className="d-flex justify-content-center py-5">
-          <LoadingSpinner />
-        </div>
-      );
-    }
-
     return (
       <>
+        {showSpinner && (
+          <div className="d-flex justify-content-center py-5">
+            <LoadingSpinner />
+          </div>
+        )}
         <DebugPanel user={user} locations={locations} />
         <h2 className="mb-4">My Weather Dashboard</h2>
         

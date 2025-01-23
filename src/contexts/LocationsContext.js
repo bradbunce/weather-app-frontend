@@ -8,7 +8,7 @@ const LocationsContext = createContext(null);
 
 export const LocationsProvider = ({ children }) => {
   const [locations, setLocations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); // Change initial state to true
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user, registerLoginCallback } = useAuth();
   const logger = useLogger();
@@ -75,10 +75,8 @@ export const LocationsProvider = ({ children }) => {
   // Fetch locations when component mounts if user is already logged in
   useEffect(() => {
     if (user?.username) {
+      setIsLoading(true);
       fetchLocations();
-    } else {
-      // Ensure loading state is set to false if no user
-      setIsLoading(false);
     }
   }, [user?.username, fetchLocations]);
 
