@@ -65,6 +65,7 @@ class WebSocketService {
         this.ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
+            console.log("Raw WebSocket message:", message);
 
             this.logger.debug("Received WebSocket message", {
               type: message.type,
