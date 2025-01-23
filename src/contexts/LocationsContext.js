@@ -92,15 +92,33 @@ export const LocationsProvider = ({ children }) => {
         locationData
       );
 
-      const addedLocation = response.data.location_id
-        ? {
-            location_id: response.data.location_id,
-            ...locationData,
-          }
-        : response.data;
-
+      const locationId = response.data.location_id;
+      
+      // Poll for weather data
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (attempts < maxAttempts) {
+        const locationsResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
+        const locationWithWeather = locationsResponse.data.find(loc => loc.location_id === locationId);
+        
+        if (locationWithWeather?.condition_text) {
+          setLocations(prev => [...prev, locationWithWeather]);
+          logger.info("Location added with weather data", { location: locationWithWeather });
+          return true;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
+      }
+      
+      // If we couldn't get weather data, add location without it
+      const addedLocation = {
+        location_id: locationId,
+        ...locationData,
+      };
       setLocations(prev => [...prev, addedLocation]);
-      logger.info("Location added successfully", { location: addedLocation });
+      logger.warn("Location added but weather data not available", { location: addedLocation });
       
       return true;
     } catch (err) {
