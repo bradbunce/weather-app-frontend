@@ -105,8 +105,26 @@ export const LocationsProvider = ({ children }) => {
       
       // Find the newly added location with weather data
       const locationWithWeather = allLocations.find(loc => loc.location_id === locationId);
-      if (locationWithWeather) {
+      
+      // Ensure we have weather data before updating state
+      if (locationWithWeather?.temp_f && 
+          locationWithWeather?.humidity && 
+          locationWithWeather?.condition_text && 
+          locationWithWeather?.wind_mph) {
         setLocations(prev => [...prev, locationWithWeather]);
+      } else {
+        // If no weather data yet, try again after a short delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const retryResponse = await axios.get(`${LOCATIONS_API_URL}/locations`);
+        const retryLocations = Array.isArray(retryResponse.data) ? retryResponse.data : retryResponse.data?.locations || [];
+        const retryLocationWithWeather = retryLocations.find(loc => loc.location_id === locationId);
+        
+        if (retryLocationWithWeather?.temp_f && 
+            retryLocationWithWeather?.humidity && 
+            retryLocationWithWeather?.condition_text && 
+            retryLocationWithWeather?.wind_mph) {
+          setLocations(prev => [...prev, retryLocationWithWeather]);
+        }
       }
       return true;
     } catch (err) {
