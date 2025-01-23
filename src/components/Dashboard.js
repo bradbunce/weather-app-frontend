@@ -112,7 +112,7 @@ const DebugPanel = React.memo(({ user, locations }) => {
 export const Dashboard = () => {
   const [showSpinner, setShowSpinner] = useState(false);
   const [showNoLocations, setShowNoLocations] = useState(false);
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { 
     locations, 
     isLoading, 
@@ -127,9 +127,10 @@ export const Dashboard = () => {
   }, [removeLocation]);
 
   useEffect(() => {
-    setShowSpinner(isLoading);
+    // Only show spinner for location loading, not auth loading
+    setShowSpinner(!isAuthLoading && isLoading);
     setShowNoLocations(!isLoading && locations.length === 0 && !error);
-  }, [isLoading, locations.length, error]);
+  }, [isLoading, isAuthLoading, locations.length, error]);
 
   const dashboardContent = useMemo(() => {
     if (!user) {
@@ -138,6 +139,11 @@ export const Dashboard = () => {
           Please log in to view your weather dashboard.
         </Alert>
       );
+    }
+
+    // Don't show dashboard content during auth loading
+    if (isAuthLoading) {
+      return null;
     }
 
     return (
@@ -172,13 +178,14 @@ export const Dashboard = () => {
     );
   }, [
     user,
-  showSpinner,
-  locations,
-  error,
-  clearError,
-  memoizedRemoveLocation,
-  showNoLocations,
-  addLocation
+    isAuthLoading,
+    showSpinner,
+    locations,
+    error,
+    clearError,
+    memoizedRemoveLocation,
+    showNoLocations,
+    addLocation
   ]);
 
   return <Container>{dashboardContent}</Container>;
