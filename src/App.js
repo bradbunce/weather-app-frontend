@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Container } from "react-bootstrap";
-import "bootstrap/dist/css/bootstrap.min.css";
+import "./styles/styles.css";
+import "react-app-polyfill/ie11";
+import "react-app-polyfill/stable";
 // Application Components
 import { NavigationBar } from "./components/NavigationBar";
 import { Home } from "./components/Home";
@@ -15,90 +17,84 @@ import { PasswordResetConfirm } from "./components/PasswordResetConfirm";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LocationsProvider } from "./contexts/LocationsContext";
 import { LDProvider } from "./contexts/LaunchDarklyContext";
-import { WebSocketProvider } from './contexts/WebSocketContext';
+import { WebSocketProvider } from "./contexts/WebSocketContext";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import { FontSizeProvider } from "./contexts/FontSizeContext"; // Font size preferences
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, isInitialized } = useAuth();
-
-  if (!isInitialized) {
-    return null;
-  }
-
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  return !isInitialized ? null : isAuthenticated ? (
+    children
+  ) : (
+    <Navigate to="/login" replace />
+  );
 };
 
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, isInitialized } = useAuth();
-
-  if (!isInitialized) {
-    return null;
-  }
-
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
+  return !isInitialized ? null : isAuthenticated ? (
+    <Navigate to="/dashboard" replace />
+  ) : (
+    children
+  );
 };
 
 const AppContent = ({ ldReady, authReady }) => {
   const { isInitialized } = useAuth();
-
-  // Only show spinner during initial app load, not during operations
+  const { theme } = useTheme();
   const isInitialLoading = !ldReady || !authReady || !isInitialized;
 
-  if (isInitialLoading) {
-    return (
-      <div className="d-flex flex-column min-vh-100">
-        <NavigationBar />
-        <Container className="py-4 flex-grow-1">
-          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-            <LoadingSpinner />
-          </div>
-        </Container>
-      </div>
-    );
-  }
+  const containerClasses = `d-flex flex-column min-vh-100 theme-${theme}`;
 
   return (
-    <div className="d-flex flex-column min-vh-100">
+    <div className={containerClasses}>
       <NavigationBar />
       <Container className="py-4 flex-grow-1">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route 
-            path="/login" 
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/register" 
-            element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            } 
-          />
-          <Route path="/reset-password" element={<PasswordResetConfirm />} />
-          
-          {/* Protected Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <PrivateRoute>
-                <Profile />
-              </PrivateRoute>
-            }
-          />
-        </Routes>
+        {isInitialLoading ? (
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ minHeight: "60vh" }}
+          >
+            <LoadingSpinner />
+          </div>
+        ) : (
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicRoute>
+                  <Register />
+                </PublicRoute>
+              }
+            />
+            <Route path="/reset-password" element={<PasswordResetConfirm />} />
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <Profile />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        )}
       </Container>
     </div>
   );
@@ -109,26 +105,20 @@ export const App = () => {
   const [authReady, setAuthReady] = useState(false);
 
   return (
-      <LDProvider
-          onReady={() => {
-              console.log('LaunchDarkly Ready');
-              setLdReady(true);
-          }}
-      >
-          <BrowserRouter>
-              <AuthProvider
-                  onReady={() => {
-                      console.log('Auth Provider Ready');
-                      setAuthReady(true);
-                  }}
-              >
-                  <WebSocketProvider>
-                      <LocationsProvider>
-                          <AppContent ldReady={ldReady} authReady={authReady} />
-                      </LocationsProvider>
-                  </WebSocketProvider>
-              </AuthProvider>
-          </BrowserRouter>
-      </LDProvider>
+    <LDProvider onReady={() => setLdReady(true)}>
+      <BrowserRouter>
+        <ThemeProvider>
+          <FontSizeProvider>
+            <AuthProvider onReady={() => setAuthReady(true)}>
+              <WebSocketProvider>
+                <LocationsProvider>
+                  <AppContent ldReady={ldReady} authReady={authReady} />
+                </LocationsProvider>
+              </WebSocketProvider>
+            </AuthProvider>
+          </FontSizeProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </LDProvider>
   );
 };

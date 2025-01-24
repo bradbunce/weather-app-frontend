@@ -1,0 +1,15 @@
+.card-container {
+  width: 100%;
+  max-width: 400px;
+  margin: auto;
+}
+
+.home-page-card {
+  width: 100%;
+}
+
+@media (min-width: 992px) {
+  .home-page-card {
+    width: 22rem;
+  }
+}

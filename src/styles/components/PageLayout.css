@@ -1,0 +1,59 @@
+:root {
+  --footer-height: 60px;
+  --header-height: 60px;
+  --extra-padding: 5px; /* Reduced extra padding */
+}
+
+.page-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.page-layout__header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  z-index: 1000;
+}
+
+.page-layout__content {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: var(--header-height);
+  padding-bottom: calc(var(--footer-height) + var(--extra-padding));
+}
+
+.page-layout:not(.home-page) .page-layout__content {
+  padding-bottom: calc(var(--footer-height) + var(--extra-padding));
+}
+
+.home-page .page-layout__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: var(--footer-height);
+}
+
+.page-layout__footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--footer-height);
+  z-index: 1000;
+  background-color: #fff;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --extra-padding: 5px; /* Slightly more padding for mobile, but still reduced */
+  }
+
+  .page-layout:not(.home-page) .page-layout__content {
+    padding-bottom: calc(var(--footer-height) + var(--extra-padding));
+  }
+}
