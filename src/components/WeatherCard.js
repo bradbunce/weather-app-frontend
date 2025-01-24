@@ -5,7 +5,7 @@ import { useWebSocket } from "../contexts/WebSocketContext";
 import { useLogger } from "../utils/logger";
 
 export const WeatherCard = React.memo(
-  ({ location, onRemove, showDetailed }) => {
+  ({ location, onRemove }) => {
     const componentId = useMemo(
       () => `weather-${location.location_id}`,
       [location.location_id]
@@ -21,44 +21,54 @@ export const WeatherCard = React.memo(
       isConnected: false,
     });
 
-    const handleMessage = useCallback((message) => {
-      console.log("Raw message received:", message);
-      
-      if (message.type === "weatherUpdate" && Array.isArray(message.data)) {
-        const locationData = message.data.find(item => item.id === location.location_id);
-        console.log("Found location data:", locationData);
-        
-        if (locationData?.weather) {
-          console.log("Setting weather state with:", locationData.weather);
-          setWeatherState(prev => ({
+    // Handle incoming weather data
+    const handleMessage = useCallback(
+      (message) => {
+        logger.debug("Weather card received message", {
+          cardId: componentId,
+          type: message.type,
+          data: message.data,
+        });
+
+        if (message.data) {
+          setWeatherState((prev) => ({
             ...prev,
-            data: locationData.weather,
+            data: message.data,
             loading: false,
             error: "",
-            isConnected: true
+            isConnected: true,
           }));
         } else {
-          console.log("No weather data found in location data");
+          setWeatherState((prev) => ({
+            ...prev,
+            loading: false,
+            error: "No data available for this location",
+            isConnected: true,
+          }));
         }
-      } else {
-        console.log("Message not handled:", message.type);
-      }
-    }, [location.location_id]);
+      },
+      [componentId, logger]
+    );
 
-    const handleError = useCallback((errorMessage) => {
-      logger.error("WeatherCard error", {
-        cardId: componentId,
-        message: errorMessage,
-      });
+    // Handle connection errors
+    const handleError = useCallback(
+      (errorMessage) => {
+        logger.error("WeatherCard error", {
+          cardId: componentId,
+          message: errorMessage,
+        });
 
-      setWeatherState((prev) => ({
-        ...prev,
-        error: errorMessage,
-        loading: false,
-        isConnected: false,
-      }));
-    }, [logger, componentId]);
+        setWeatherState((prev) => ({
+          ...prev,
+          error: errorMessage,
+          loading: false,
+          isConnected: false,
+        }));
+      },
+      [componentId, logger]
+    );
 
+    // Register with WebSocket service
     useEffect(() => {
       if (!isAuthenticated || !location?.location_id) {
         setWeatherState((prev) => ({
@@ -70,12 +80,23 @@ export const WeatherCard = React.memo(
         return;
       }
 
+      logger.debug("Registering weather card handler", {
+        cardId: componentId,
+        locationId: location.location_id,
+      });
+
+      // Add handler for this location
       webSocket.addLocationHandler(location.location_id, {
         onMessage: handleMessage,
         onError: handleError,
       });
 
+      // Cleanup on unmount
       return () => {
+        logger.debug("Cleaning up weather card handler", {
+          cardId: componentId,
+          locationId: location.location_id,
+        });
         webSocket.removeLocationHandler(location.location_id);
       };
     }, [
@@ -84,8 +105,11 @@ export const WeatherCard = React.memo(
       handleMessage,
       handleError,
       isAuthenticated,
+      logger,
+      componentId,
     ]);
 
+    // Handle refresh button click
     const handleRefresh = useCallback(() => {
       if (!isAuthenticated) {
         handleError("Not authenticated");
@@ -100,13 +124,18 @@ export const WeatherCard = React.memo(
       }
     }, [location.location_id, webSocket, handleError, isAuthenticated]);
 
+    // Render loading state
     if (weatherState.loading) {
       return (
         <Card className="h-100">
           <Card.Body>
             <Card.Title className="d-flex justify-content-between align-items-start">
               {location.city_name}
-              <Button variant="outline-danger" size="sm" onClick={() => onRemove(location.location_id)}>
+              <Button
+                variant="outline-danger"
+                size="sm"
+                onClick={() => onRemove(location.location_id)}
+              >
                 Remove
               </Button>
             </Card.Title>
@@ -119,18 +148,27 @@ export const WeatherCard = React.memo(
       );
     }
 
+    // Render error state
     if (weatherState.error) {
       return (
         <Card className="h-100">
           <Card.Body>
             <Card.Title className="d-flex justify-content-between align-items-start">
               {location.city_name}
-              <Button variant="outline-danger" size="sm" onClick={() => onRemove(location.location_id)}>
+              <Button
+                variant="outline-danger"
+                size="sm"
+                onClick={() => onRemove(location.location_id)}
+              >
                 Remove
               </Button>
             </Card.Title>
             <div className="text-danger my-3">{weatherState.error}</div>
-            <Button variant="outline-secondary" size="sm" onClick={handleRefresh}>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={handleRefresh}
+            >
               Retry
             </Button>
           </Card.Body>
@@ -138,109 +176,39 @@ export const WeatherCard = React.memo(
       );
     }
 
-    const renderBasicInfo = () => (
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <strong>Temperature:</strong> {weatherState.data?.temp_f}°F
-        </div>
-        <div>
-          <strong>Condition:</strong> {weatherState.data?.condition_text}
-        </div>
-        <div>
-          <strong>Humidity:</strong> {weatherState.data?.humidity}%
-        </div>
-        <div>
-          <strong>Wind:</strong> {weatherState.data?.wind_mph} MPH {weatherState.data?.wind_dir}
-        </div>
-      </div>
-    );
-
-    const renderDetailedInfo = () => (
-      <div className="grid grid-cols-2 gap-2">
-        {/* Temperature Section */}
-        <div className="col-span-2 font-medium text-gray-700 mt-2 mb-1">Temperature</div>
-        <div>
-          <strong>Current:</strong> {weatherState.data?.temp_f}°F
-        </div>
-        <div>
-          <strong>Feels Like:</strong> {weatherState.data?.feelslike_f}°F
-        </div>
-
-        {/* Wind Section */}
-        <div className="col-span-2 font-medium text-gray-700 mt-3 mb-1">Wind</div>
-        <div>
-          <strong>Speed:</strong> {weatherState.data?.wind_mph} MPH
-        </div>
-        <div>
-          <strong>Direction:</strong> {weatherState.data?.wind_dir} ({weatherState.data?.wind_degree}°)
-        </div>
-        <div>
-          <strong>Gusts:</strong> {weatherState.data?.gust_mph} MPH
-        </div>
-
-        {/* Conditions Section */}
-        <div className="col-span-2 font-medium text-gray-700 mt-3 mb-1">Conditions</div>
-        <div>
-          <strong>Humidity:</strong> {weatherState.data?.humidity}%
-        </div>
-        <div>
-          <strong>Cloud Cover:</strong> {weatherState.data?.cloud}%
-        </div>
-        <div>
-          <strong>Pressure:</strong> {weatherState.data?.pressure_in} inHg
-        </div>
-        <div>
-          <strong>Visibility:</strong> {weatherState.data?.vis_miles} mi
-        </div>
-        <div>
-          <strong>UV Index:</strong> {weatherState.data?.uv}
-        </div>
-        <div>
-          <strong>Precipitation:</strong> {weatherState.data?.precip_in} in
-        </div>
-
-        {/* Location Details */}
-        {location.metadata && (
-          <>
-            <div className="col-span-2 font-medium text-gray-700 mt-3 mb-1">Location</div>
-            <div>
-              <strong>Region:</strong> {location.metadata.region}
-            </div>
-            <div>
-              <strong>Country:</strong> {location.metadata.country}
-            </div>
-            <div>
-              <strong>Timezone:</strong> {location.metadata.timezone}
-            </div>
-            {location.coordinates && (
-              <div>
-                <strong>Coordinates:</strong> {location.coordinates.latitude}, {location.coordinates.longitude}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    );
-
+    // Render weather data
     return (
       <Card className="h-100">
         <Card.Body>
           <Card.Title className="d-flex justify-content-between align-items-start">
             {location.city_name}
-            <Button variant="outline-danger" size="sm" onClick={() => onRemove(location.location_id)}>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              onClick={() => onRemove(location.location_id)}
+            >
               Remove
             </Button>
           </Card.Title>
-          
           <Card.Text as="div">
-            {showDetailed ? renderDetailedInfo() : renderBasicInfo()}
+            <div className="mb-2">
+              <strong>Temperature:</strong> {weatherState.data?.temperature}°F
+            </div>
+            <div className="mb-2">
+              <strong>Condition:</strong> {weatherState.data?.condition}
+            </div>
+            <div className="mb-2">
+              <strong>Humidity:</strong> {weatherState.data?.humidity}%
+            </div>
+            <div>
+              <strong>Wind Speed:</strong> {weatherState.data?.windSpeed} MPH
+            </div>
           </Card.Text>
-          
           <div className="text-muted mt-3">
             <small>
               Last updated:{" "}
-              {weatherState.data?.last_updated
-                ? new Date(weatherState.data.last_updated).toLocaleTimeString()
+              {weatherState.data?.timestamp
+                ? new Date(weatherState.data.timestamp).toLocaleTimeString()
                 : "Never"}
             </small>
           </div>
@@ -258,6 +226,5 @@ export const WeatherCard = React.memo(
   },
   (prevProps, nextProps) =>
     prevProps.location.location_id === nextProps.location.location_id &&
-    prevProps.onRemove === nextProps.onRemove &&
-    prevProps.showDetailed === nextProps.showDetailed
+    prevProps.onRemove === nextProps.onRemove
 );

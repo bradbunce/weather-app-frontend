@@ -1,50 +1,21 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
-import { Maximize2, Minimize2 } from "lucide-react";
 import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useLocations } from "../contexts/LocationsContext";
 import { LoadingSpinner } from './LoadingSpinner';
 
-const ViewToggle = React.memo(({ showDetailedView, onToggle }) => (
-  <div className="d-flex justify-content-end mb-3">
-    <Button
-      variant="outline-secondary"
-      size="sm"
-      onClick={onToggle}
-      className="d-flex align-items-center gap-2"
-    >
-      {showDetailedView ? (
-        <>
-          <Minimize2 size={16} />
-          Basic View
-        </>
-      ) : (
-        <>
-          <Maximize2 size={16} />
-          Detailed View
-        </>
-      )}
-    </Button>
-  </div>
-));
-
-const LocationGrid = React.memo(({ locations, onRemove, showDetailedView }) => (
+const LocationGrid = React.memo(({ locations, onRemove }) => (
   <Row xs={1} md={2} lg={3} className="g-4">
     {locations.map((location) => (
       <Col key={location.location_id}>
-        <WeatherCard 
-          location={location} 
-          onRemove={onRemove}
-          showDetailed={showDetailedView} 
-        />
+        <WeatherCard location={location} onRemove={onRemove} />
       </Col>
     ))}
   </Row>
 ), (prevProps, nextProps) => {
   if (prevProps.locations.length !== nextProps.locations.length) return false;
-  if (prevProps.showDetailedView !== nextProps.showDetailedView) return false;
   return prevProps.locations.every((loc, i) => 
     loc.location_id === nextProps.locations[i].location_id
   );
@@ -139,7 +110,6 @@ const DebugPanel = React.memo(({ user, locations }) => {
 });
 
 export const Dashboard = () => {
-  const [showDetailedView, setShowDetailedView] = useState(false);
   const { user, isLoading: isAuthLoading } = useAuth();
   const { 
     locations, 
@@ -154,12 +124,11 @@ export const Dashboard = () => {
     removeLocation(locationId);
   }, [removeLocation]);
 
-  const toggleView = useCallback(() => {
-    setShowDetailedView(prev => !prev);
-  }, []);
-
   const dashboardContent = useMemo(() => {
-    if (isAuthLoading) return null;
+    // Don't render anything during auth loading
+    if (isAuthLoading) {
+      return null;
+    }
 
     if (!user) {
       return (
@@ -169,6 +138,7 @@ export const Dashboard = () => {
       );
     }
 
+    // Only show locations loading spinner when needed
     if (isLoading) {
       return (
         <div className="d-flex justify-content-center py-5">
@@ -180,15 +150,7 @@ export const Dashboard = () => {
     return (
       <>
         <DebugPanel user={user} locations={locations} />
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="mb-0">My Weather Dashboard</h2>
-          {locations.length > 0 && (
-            <ViewToggle 
-              showDetailedView={showDetailedView} 
-              onToggle={toggleView}
-            />
-          )}
-        </div>
+        <h2 className="mb-4">My Weather Dashboard</h2>
         
         <FormSection onAdd={addLocation} />
 
@@ -200,8 +162,7 @@ export const Dashboard = () => {
 
         <LocationGrid 
           locations={locations} 
-          onRemove={memoizedRemoveLocation}
-          showDetailedView={showDetailedView}
+          onRemove={memoizedRemoveLocation} 
         />
 
         {locations.length === 0 && !error && (
@@ -219,9 +180,7 @@ export const Dashboard = () => {
     error,
     clearError,
     memoizedRemoveLocation,
-    addLocation,
-    showDetailedView,
-    toggleView
+    addLocation
   ]);
 
   return <Container>{dashboardContent}</Container>;
