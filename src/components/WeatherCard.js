@@ -22,15 +22,14 @@ export const WeatherCard = React.memo(
     });
 
     const handleMessage = useCallback((message) => {
-      logger.debug("Weather card received message", {
-        cardId: componentId,
-        type: message.type,
-        data: message.data,
-      });
-
-      if (Array.isArray(message.data)) {
+      console.log("Raw message received:", message);
+      
+      if (message.type === "weatherUpdate" && Array.isArray(message.data)) {
         const locationData = message.data.find(item => item.id === location.location_id);
+        console.log("Found location data:", locationData);
+        
         if (locationData?.weather) {
+          console.log("Setting weather state with:", locationData.weather);
           setWeatherState(prev => ({
             ...prev,
             data: locationData.weather,
@@ -38,9 +37,13 @@ export const WeatherCard = React.memo(
             error: "",
             isConnected: true
           }));
+        } else {
+          console.log("No weather data found in location data");
         }
+      } else {
+        console.log("Message not handled:", message.type);
       }
-    }, [logger, location.location_id, componentId]);
+    }, [location.location_id]);
 
     const handleError = useCallback((errorMessage) => {
       logger.error("WeatherCard error", {
