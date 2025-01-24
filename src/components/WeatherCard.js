@@ -142,84 +142,84 @@ export const WeatherCard = React.memo(
     }
 
     const renderBasicInfo = () => (
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <strong>Temperature:</strong> {weatherState.data?.temp_f}°F
+      <>
+        <div className="mb-2">
+          <strong>Temperature:</strong> {weatherState.data?.temperature}°F
         </div>
-        <div>
-          <strong>Condition:</strong> {weatherState.data?.condition_text}
+        <div className="mb-2">
+          <strong>Condition:</strong> {weatherState.data?.condition}
         </div>
-        <div>
+        <div className="mb-2">
           <strong>Humidity:</strong> {weatherState.data?.humidity}%
         </div>
         <div>
-          <strong>Wind:</strong> {weatherState.data?.wind_mph} MPH {weatherState.data?.wind_dir}
+          <strong>Wind Speed:</strong> {weatherState.data?.windSpeed} MPH
         </div>
-      </div>
+      </>
     );
 
     const renderDetailedInfo = () => (
       <div className="grid grid-cols-2 gap-2">
         {/* Temperature Section */}
         <div>
-          <strong>Temperature:</strong> {weatherState.data?.temp_f}°F
+          <strong>Temperature:</strong> {weatherState.data?.temperature}°F
         </div>
         <div>
-          <strong>Feels Like:</strong> {weatherState.data?.feelslike_f}°F
+          <strong>Feels Like:</strong> {weatherState.data?.feelsLike}°F
         </div>
         
         {/* Wind Section */}
         <div>
-          <strong>Wind Speed:</strong> {weatherState.data?.wind_mph} MPH
+          <strong>Wind Speed:</strong> {weatherState.data?.windSpeed} MPH
         </div>
         <div>
-          <strong>Wind Direction:</strong> {weatherState.data?.wind_dir}
+          <strong>Wind Direction:</strong> {weatherState.data?.windDirection}
         </div>
         <div>
-          <strong>Wind Gusts:</strong> {weatherState.data?.gust_mph} MPH
+          <strong>Wind Gusts:</strong> {weatherState.data?.windGusts} MPH
         </div>
         
         {/* Atmospheric Conditions */}
         <div>
-          <strong>Pressure:</strong> {weatherState.data?.pressure_in} inHg
+          <strong>Pressure:</strong> {weatherState.data?.pressure} inHg
         </div>
         <div>
           <strong>Humidity:</strong> {weatherState.data?.humidity}%
         </div>
         <div>
-          <strong>Cloud Cover:</strong> {weatherState.data?.cloud}%
+          <strong>Cloud Cover:</strong> {weatherState.data?.cloudCover}%
         </div>
         <div>
-          <strong>Visibility:</strong> {weatherState.data?.vis_miles} mi
+          <strong>Visibility:</strong> {weatherState.data?.visibility} mi
         </div>
         <div>
-          <strong>UV Index:</strong> {weatherState.data?.uv}
+          <strong>UV Index:</strong> {weatherState.data?.uvIndex}
         </div>
         <div>
-          <strong>Precipitation:</strong> {weatherState.data?.precip_in} in
+          <strong>Precipitation:</strong> {weatherState.data?.precipitation} in
         </div>
         
         {/* Air Quality Section */}
-        {weatherState.data?.air_quality && (
+        {weatherState.data?.airQuality && (
           <>
             <div className="col-span-2 font-medium text-gray-700 mt-3 mb-2">Air Quality</div>
             <div>
-              <strong>CO:</strong> {weatherState.data.air_quality.co} μg/m³
+              <strong>CO:</strong> {weatherState.data.airQuality.co} μg/m³
             </div>
             <div>
-              <strong>NO2:</strong> {weatherState.data.air_quality.no2} μg/m³
+              <strong>NO2:</strong> {weatherState.data.airQuality.no2} μg/m³
             </div>
             <div>
-              <strong>O3:</strong> {weatherState.data.air_quality.o3} μg/m³
+              <strong>O3:</strong> {weatherState.data.airQuality.o3} μg/m³
             </div>
             <div>
-              <strong>SO2:</strong> {weatherState.data.air_quality.so2} μg/m³
+              <strong>SO2:</strong> {weatherState.data.airQuality.so2} μg/m³
             </div>
             <div>
-              <strong>PM2.5:</strong> {weatherState.data.air_quality.pm2_5} μg/m³
+              <strong>PM2.5:</strong> {weatherState.data.airQuality.pm2_5} μg/m³
             </div>
             <div>
-              <strong>PM10:</strong> {weatherState.data.air_quality.pm10} μg/m³
+              <strong>PM10:</strong> {weatherState.data.airQuality.pm10} μg/m³
             </div>
           </>
         )}
