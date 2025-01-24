@@ -107,10 +107,10 @@ export const LocationsProvider = ({ children }) => {
     if (webSocket) {
       webSocket.addLocationHandler('locations', {
         onMessage: (msg) => {
-          if (msg.type === 'weatherUpdate' || msg.type === 'locationUpdate') {
+          if (msg.type === 'locationUpdate') {
             if (msg.data && Array.isArray(msg.data)) {
               setLocations(msg.data);
-              logger.info(`Locations updated via ${msg.type}`, { 
+              logger.info("Locations updated via WebSocket", { 
                 count: msg.data.length 
               });
             }
