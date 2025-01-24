@@ -66,25 +66,17 @@ class WebSocketService {
           try {
             const message = JSON.parse(event.data);
             console.log("Raw WebSocket message:", message);
-
+        
             this.logger.debug("Received WebSocket message", {
               type: message.type,
               dataCount: message.data?.length,
             });
-
-            // Handle error messages specifically
-            if (message.type === "error") {
-              this.logger.error("WebSocket Error Message", {
-                message: message.message,
-                code: message.code,
-              });
-
-              // Optional: Show user-friendly error notification
-              if (message.code === "NO_TOKEN") {
-                // Trigger reconnection or logout
-                this.handleConnectionError();
+        
+            if (message.type === "locationUpdate") {
+              const handler = this.messageHandlers.get('locations');
+              if (handler) {
+                handler.onMessage(message);
               }
-
               return;
             }
 
