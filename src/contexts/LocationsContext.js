@@ -109,9 +109,10 @@ export const LocationsProvider = ({ children }) => {
         onMessage: (msg) => {
           logger.debug("WebSocket message received:", msg);
           
-          if ((msg.type === 'locationUpdate' || msg.type === 'weatherUpdate') && Array.isArray(msg.data)) {
-            setLocations([...msg.data]);
-            logger.info(`${msg.type} received:`, { count: msg.data.length });
+          if (msg.type === 'locationUpdate' && Array.isArray(msg.data)) {
+            logger.debug("Before setLocations:", locations);
+            setLocations(msg.data);
+            logger.debug("After setLocations called with:", msg.data);
           }
         },
         onError: (error) => {
@@ -122,7 +123,7 @@ export const LocationsProvider = ({ children }) => {
   
       return () => webSocket.removeLocationHandler('locations');
     }
-  }, [webSocket, logger]);
+  }, [webSocket, logger, locations]);
 
   useEffect(() => {
     logger.debug("Registering locations fetch callback with auth context");
