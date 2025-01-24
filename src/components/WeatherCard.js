@@ -23,27 +23,24 @@ export const WeatherCard = React.memo(
 
     const handleMessage = useCallback((message) => {
       logger.debug("Weather card received message", {
+        cardId: componentId,
         type: message.type,
         data: message.data,
       });
-    
-      if (message.data) {
-        setWeatherState(prev => ({
-          ...prev,
-          data: message.data,
-          loading: false,
-          error: "",
-          isConnected: true
-        }));
-      } else {
-        setWeatherState(prev => ({
-          ...prev,
-          loading: false,
-          error: "No data available for this location",
-          isConnected: true
-        }));
+
+      if (Array.isArray(message.data)) {
+        const locationData = message.data.find(item => item.id === location.location_id);
+        if (locationData?.weather) {
+          setWeatherState(prev => ({
+            ...prev,
+            data: locationData.weather,
+            loading: false,
+            error: "",
+            isConnected: true
+          }));
+        }
       }
-    }, [logger]);
+    }, [logger, location.location_id, componentId]);
 
     const handleError = useCallback((errorMessage) => {
       logger.error("WeatherCard error", {
@@ -57,7 +54,7 @@ export const WeatherCard = React.memo(
         loading: false,
         isConnected: false,
       }));
-    }, [componentId, logger]);
+    }, [logger, componentId]);
 
     useEffect(() => {
       if (!isAuthenticated || !location?.location_id) {
@@ -84,8 +81,6 @@ export const WeatherCard = React.memo(
       handleMessage,
       handleError,
       isAuthenticated,
-      logger,
-      componentId,
     ]);
 
     const handleRefresh = useCallback(() => {
@@ -143,28 +138,45 @@ export const WeatherCard = React.memo(
     const renderBasicInfo = () => (
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <strong>Temperature:</strong> {weatherState.data?.temp_f || weatherState.data?.temperature}°F
+          <strong>Temperature:</strong> {weatherState.data?.temp_f}°F
         </div>
         <div>
-          <strong>Condition:</strong> {weatherState.data?.condition_text || weatherState.data?.condition}
+          <strong>Condition:</strong> {weatherState.data?.condition_text}
         </div>
         <div>
           <strong>Humidity:</strong> {weatherState.data?.humidity}%
         </div>
         <div>
-          <strong>Wind:</strong> {weatherState.data?.wind_mph || weatherState.data?.windSpeed} MPH {weatherState.data?.wind_dir}
+          <strong>Wind:</strong> {weatherState.data?.wind_mph} MPH {weatherState.data?.wind_dir}
         </div>
       </div>
     );
-    
+
     const renderDetailedInfo = () => (
       <div className="grid grid-cols-2 gap-2">
+        {/* Temperature Section */}
+        <div className="col-span-2 font-medium text-gray-700 mt-2 mb-1">Temperature</div>
         <div>
-          <strong>Temperature:</strong> {weatherState.data?.temp_f || weatherState.data?.temperature}°F
+          <strong>Current:</strong> {weatherState.data?.temp_f}°F
         </div>
         <div>
-          <strong>Feels Like:</strong> {weatherState.data?.feelslike_f || weatherState.data?.feels_like}°F
+          <strong>Feels Like:</strong> {weatherState.data?.feelslike_f}°F
         </div>
+
+        {/* Wind Section */}
+        <div className="col-span-2 font-medium text-gray-700 mt-3 mb-1">Wind</div>
+        <div>
+          <strong>Speed:</strong> {weatherState.data?.wind_mph} MPH
+        </div>
+        <div>
+          <strong>Direction:</strong> {weatherState.data?.wind_dir} ({weatherState.data?.wind_degree}°)
+        </div>
+        <div>
+          <strong>Gusts:</strong> {weatherState.data?.gust_mph} MPH
+        </div>
+
+        {/* Conditions Section */}
+        <div className="col-span-2 font-medium text-gray-700 mt-3 mb-1">Conditions</div>
         <div>
           <strong>Humidity:</strong> {weatherState.data?.humidity}%
         </div>
@@ -175,23 +187,35 @@ export const WeatherCard = React.memo(
           <strong>Pressure:</strong> {weatherState.data?.pressure_in} inHg
         </div>
         <div>
-          <strong>UV Index:</strong> {weatherState.data?.uv}
-        </div>
-        <div>
           <strong>Visibility:</strong> {weatherState.data?.vis_miles} mi
         </div>
         <div>
-          <strong>Wind Speed:</strong> {weatherState.data?.wind_mph || weatherState.data?.windSpeed} MPH
-        </div>
-        <div>
-          <strong>Wind Direction:</strong> {weatherState.data?.wind_dir}
-        </div>
-        <div>
-          <strong>Wind Gusts:</strong> {weatherState.data?.gust_mph} MPH
+          <strong>UV Index:</strong> {weatherState.data?.uv}
         </div>
         <div>
           <strong>Precipitation:</strong> {weatherState.data?.precip_in} in
         </div>
+
+        {/* Location Details */}
+        {location.metadata && (
+          <>
+            <div className="col-span-2 font-medium text-gray-700 mt-3 mb-1">Location</div>
+            <div>
+              <strong>Region:</strong> {location.metadata.region}
+            </div>
+            <div>
+              <strong>Country:</strong> {location.metadata.country}
+            </div>
+            <div>
+              <strong>Timezone:</strong> {location.metadata.timezone}
+            </div>
+            {location.coordinates && (
+              <div>
+                <strong>Coordinates:</strong> {location.coordinates.latitude}, {location.coordinates.longitude}
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
 
