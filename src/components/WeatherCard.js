@@ -23,28 +23,27 @@ export const WeatherCard = React.memo(
 
     const handleMessage = useCallback((message) => {
       logger.debug("Weather card received message", {
-        cardId: componentId,
         type: message.type,
         data: message.data,
       });
-
+    
       if (message.data) {
-        setWeatherState((prev) => ({
+        setWeatherState(prev => ({
           ...prev,
           data: message.data,
           loading: false,
           error: "",
-          isConnected: true,
+          isConnected: true
         }));
       } else {
-        setWeatherState((prev) => ({
+        setWeatherState(prev => ({
           ...prev,
           loading: false,
           error: "No data available for this location",
-          isConnected: true,
+          isConnected: true
         }));
       }
-    }, [componentId, logger]);
+    }, [logger]);
 
     const handleError = useCallback((errorMessage) => {
       logger.error("WeatherCard error", {
@@ -142,87 +141,57 @@ export const WeatherCard = React.memo(
     }
 
     const renderBasicInfo = () => (
-      <>
-        <div className="mb-2">
-          <strong>Temperature:</strong> {weatherState.data?.temperature}°F
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <strong>Temperature:</strong> {weatherState.data?.temp_f || weatherState.data?.temperature}°F
         </div>
-        <div className="mb-2">
-          <strong>Condition:</strong> {weatherState.data?.condition}
+        <div>
+          <strong>Condition:</strong> {weatherState.data?.condition_text || weatherState.data?.condition}
         </div>
-        <div className="mb-2">
+        <div>
           <strong>Humidity:</strong> {weatherState.data?.humidity}%
         </div>
         <div>
-          <strong>Wind Speed:</strong> {weatherState.data?.windSpeed} MPH
+          <strong>Wind:</strong> {weatherState.data?.wind_mph || weatherState.data?.windSpeed} MPH {weatherState.data?.wind_dir}
         </div>
-      </>
+      </div>
     );
-
+    
     const renderDetailedInfo = () => (
       <div className="grid grid-cols-2 gap-2">
-        {/* Temperature Section */}
         <div>
-          <strong>Temperature:</strong> {weatherState.data?.temperature}°F
+          <strong>Temperature:</strong> {weatherState.data?.temp_f || weatherState.data?.temperature}°F
         </div>
         <div>
-          <strong>Feels Like:</strong> {weatherState.data?.feelsLike}°F
-        </div>
-        
-        {/* Wind Section */}
-        <div>
-          <strong>Wind Speed:</strong> {weatherState.data?.windSpeed} MPH
-        </div>
-        <div>
-          <strong>Wind Direction:</strong> {weatherState.data?.windDirection}
-        </div>
-        <div>
-          <strong>Wind Gusts:</strong> {weatherState.data?.windGusts} MPH
-        </div>
-        
-        {/* Atmospheric Conditions */}
-        <div>
-          <strong>Pressure:</strong> {weatherState.data?.pressure} inHg
+          <strong>Feels Like:</strong> {weatherState.data?.feelslike_f || weatherState.data?.feels_like}°F
         </div>
         <div>
           <strong>Humidity:</strong> {weatherState.data?.humidity}%
         </div>
         <div>
-          <strong>Cloud Cover:</strong> {weatherState.data?.cloudCover}%
+          <strong>Cloud Cover:</strong> {weatherState.data?.cloud}%
         </div>
         <div>
-          <strong>Visibility:</strong> {weatherState.data?.visibility} mi
+          <strong>Pressure:</strong> {weatherState.data?.pressure_in} inHg
         </div>
         <div>
-          <strong>UV Index:</strong> {weatherState.data?.uvIndex}
+          <strong>UV Index:</strong> {weatherState.data?.uv}
         </div>
         <div>
-          <strong>Precipitation:</strong> {weatherState.data?.precipitation} in
+          <strong>Visibility:</strong> {weatherState.data?.vis_miles} mi
         </div>
-        
-        {/* Air Quality Section */}
-        {weatherState.data?.airQuality && (
-          <>
-            <div className="col-span-2 font-medium text-gray-700 mt-3 mb-2">Air Quality</div>
-            <div>
-              <strong>CO:</strong> {weatherState.data.airQuality.co} μg/m³
-            </div>
-            <div>
-              <strong>NO2:</strong> {weatherState.data.airQuality.no2} μg/m³
-            </div>
-            <div>
-              <strong>O3:</strong> {weatherState.data.airQuality.o3} μg/m³
-            </div>
-            <div>
-              <strong>SO2:</strong> {weatherState.data.airQuality.so2} μg/m³
-            </div>
-            <div>
-              <strong>PM2.5:</strong> {weatherState.data.airQuality.pm2_5} μg/m³
-            </div>
-            <div>
-              <strong>PM10:</strong> {weatherState.data.airQuality.pm10} μg/m³
-            </div>
-          </>
-        )}
+        <div>
+          <strong>Wind Speed:</strong> {weatherState.data?.wind_mph || weatherState.data?.windSpeed} MPH
+        </div>
+        <div>
+          <strong>Wind Direction:</strong> {weatherState.data?.wind_dir}
+        </div>
+        <div>
+          <strong>Wind Gusts:</strong> {weatherState.data?.gust_mph} MPH
+        </div>
+        <div>
+          <strong>Precipitation:</strong> {weatherState.data?.precip_in} in
+        </div>
       </div>
     );
 
