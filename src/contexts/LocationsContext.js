@@ -107,12 +107,15 @@ export const LocationsProvider = ({ children }) => {
     if (webSocket) {
       webSocket.addLocationHandler('locations', {
         onMessage: (msg) => {
-          logger.debug("WebSocket message received:", msg);
+          logger.debug("Processing WebSocket message", {
+            type: msg.type,
+            dataCount: msg.data?.length,
+            currentLocations: locations.length,
+            newLocations: msg.data.map(l => l.location_id)
+          });
           
           if (msg.type === 'locationUpdate' && Array.isArray(msg.data)) {
-            logger.debug("Before setLocations:", locations);
             setLocations(msg.data);
-            logger.debug("After setLocations called with:", msg.data);
           }
         },
         onError: (error) => {
