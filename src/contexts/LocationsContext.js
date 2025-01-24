@@ -107,13 +107,21 @@ export const LocationsProvider = ({ children }) => {
     if (webSocket) {
       webSocket.addLocationHandler('locations', {
         onMessage: (msg) => {
-          if (msg.type === 'locationUpdate') {
-            if (msg.data && Array.isArray(msg.data)) {
-              setLocations(msg.data);
-              logger.info("Locations updated via WebSocket", { 
-                count: msg.data.length 
-              });
-            }
+          logger.debug("WebSocket message received:", msg);
+          
+          if (msg.type === 'locationUpdate' && Array.isArray(msg.data)) {
+            logger.debug("Setting locations from WebSocket:", {
+              locations: msg.data,
+              count: msg.data.length
+            });
+            
+            // Force state update with new array reference
+            setLocations([...msg.data]);
+            
+            logger.info("Locations updated via WebSocket", { 
+              count: msg.data.length,
+              locationIds: msg.data.map(l => l.location_id)
+            });
           }
         },
         onError: (error) => {
@@ -121,10 +129,10 @@ export const LocationsProvider = ({ children }) => {
           setError("Lost connection to weather updates");
         }
       });
-  
+   
       return () => webSocket.removeLocationHandler('locations');
     }
-  }, [webSocket, logger]);
+   }, [webSocket, logger]);
 
   useEffect(() => {
     logger.debug("Registering locations fetch callback with auth context");
