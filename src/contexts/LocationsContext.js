@@ -107,11 +107,10 @@ export const LocationsProvider = ({ children }) => {
     if (webSocket) {
       webSocket.addLocationHandler('locations', {
         onMessage: (msg) => {
-          if (msg.type === 'locationUpdate') {
-            // Update this to handle processed weather data
+          if (msg.type === 'weatherUpdate' || msg.type === 'locationUpdate') {
             if (msg.data && Array.isArray(msg.data)) {
               setLocations(msg.data);
-              logger.info("Locations updated via WebSocket", { 
+              logger.info(`Locations updated via ${msg.type}`, { 
                 count: msg.data.length 
               });
             }
@@ -122,7 +121,7 @@ export const LocationsProvider = ({ children }) => {
           setError("Lost connection to weather updates");
         }
       });
-
+  
       return () => webSocket.removeLocationHandler('locations');
     }
   }, [webSocket, logger]);
