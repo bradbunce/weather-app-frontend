@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLDClient } from "launchdarkly-react-client-sdk";
 
 export const LogLevel = {
@@ -104,10 +105,19 @@ export const logger = new Logger();
 export const useLogger = () => {
   const ldClient = useLDClient();
 
-  // Set the LD client whenever it changes
-  if (ldClient) {
-    logger.setLDClient(ldClient);
-  }
+  // Set the LD client in an effect to handle cleanup
+  useEffect(() => {
+    if (ldClient) {
+      logger.setLDClient(ldClient);
+    }
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      if (ldClient) {
+        logger.setLDClient(null);
+      }
+    };
+  }, [ldClient]);
 
   return logger;
 };
