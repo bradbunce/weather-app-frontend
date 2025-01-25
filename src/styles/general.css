@@ -52,21 +52,14 @@ code {
 }
 
 /* Navbar theme styles */
-.theme-light .navbar {
-  background-color: #f8f9fa !important;
-  border-bottom: 1px solid #dee2e6;
-}
-
+.theme-light .navbar,
 .theme-dark .navbar {
-  background-color: #1e1e1e !important;
-  border-bottom: 1px solid #2d2d2d;
+  background-color: #0d6efd !important;
+  border-bottom: none;
 }
 
 .theme-light .navbar-brand,
-.theme-light .nav-link {
-  color: #000000 !important;
-}
-
+.theme-light .nav-link,
 .theme-dark .navbar-brand,
 .theme-dark .nav-link {
   color: #ffffff !important;

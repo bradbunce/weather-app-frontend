@@ -17,7 +17,7 @@
 /* Font size controls button styles */
 .navbar .font-size-controls .btn {
   color: #ffffff !important;
-  border-color: #ffffff !important;
+  border: none !important;
 }
 
 .navbar .font-size-controls .btn:hover {
@@ -27,7 +27,7 @@
 /* Theme toggle button */
 .navbar .theme-toggle {
   color: #ffffff !important;
-  border-color: #ffffff !important;
+  border: none !important;
 }
 
 .navbar .theme-toggle:hover {

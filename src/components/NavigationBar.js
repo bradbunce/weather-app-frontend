@@ -58,35 +58,38 @@ export const NavigationBar = () => {
                 </Button>
               </>
             )}
-            <ButtonGroup className="ms-2 me-2 font-size-controls">
-              <Button
-                variant="outline-theme"
-                size="sm"
-                onClick={decreaseFontSize}
-                className="theme-toggle d-flex align-items-center"
-                style={{ padding: '0.4rem' }}
-              >
-                <Minus size={18} />
-              </Button>
-              <Button
-                variant="outline-theme"
-                size="sm"
-                onClick={increaseFontSize}
-                className="d-flex align-items-center"
-                style={{ padding: '0.4rem' }}
-              >
-                <Plus size={18} />
-              </Button>
-            </ButtonGroup>
             <Button
-              variant="outline-theme"
+              variant="link"
               size="sm"
               onClick={toggleTheme}
-              className="d-flex align-items-center"
+              className="d-flex align-items-center text-white me-2"
               style={{ padding: '0.4rem' }}
             >
-              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              {theme === 'light' ? 
+                <Moon style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} /> : 
+                <Sun style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} />
+              }
             </Button>
+            <ButtonGroup className="font-size-controls">
+              <Button
+                variant="link"
+                size="sm"
+                onClick={increaseFontSize}
+                className="d-flex align-items-center text-white"
+                style={{ padding: '0.4rem' }}
+              >
+                <Plus style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} />
+              </Button>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={decreaseFontSize}
+                className="theme-toggle d-flex align-items-center text-white"
+                style={{ padding: '0.4rem' }}
+              >
+                <Minus style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} />
+              </Button>
+            </ButtonGroup>
           </Nav>
         </Navbar.Collapse>
       </Container>
