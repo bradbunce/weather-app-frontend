@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { useLogger } from "../utils/logger";
 import { asyncWithLDProvider } from "launchdarkly-react-client-sdk";
 import { createLDContexts } from "../config/launchDarkly";
 
@@ -7,7 +8,9 @@ const LDContext = createContext();
 export const LDProvider = ({ children, onReady }) => {
   const [LDClient, setLDClient] = useState(null);
   const initializationRef = useRef(false);
+  const logger = useLogger();
 
+  // Initialize LaunchDarkly client
   useEffect(() => {
     const initializeLDClient = async () => {
       if (initializationRef.current) return; // Prevent multiple initializations
@@ -24,11 +27,11 @@ export const LDProvider = ({ children, onReady }) => {
         setLDClient(() => LDProviderComponent);
         onReady?.(); // Call onReady when LD is initialized
       } catch (error) {
-        console.error("Error initializing LaunchDarkly:", error);
+        logger.error("Error initializing LaunchDarkly", { error: error.message });
       }
     };
     initializeLDClient();
-  }, [onReady]);
+  }, [onReady, logger]);
 
   if (!LDClient) {
     return <div />;
