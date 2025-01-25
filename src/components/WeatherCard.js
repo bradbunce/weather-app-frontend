@@ -131,7 +131,7 @@ export const WeatherCard = React.memo(
       return (
         <Card className={`h-100 theme-${theme}`}>
           <Card.Body>
-            <Card.Title className="d-flex justify-content-between align-items-start">
+            <Card.Title className="d-flex justify-content-between align-items-start text-title">
               {location.city_name}
               <Button
                 variant="outline-danger"
@@ -192,8 +192,8 @@ export const WeatherCard = React.memo(
               Remove
             </Button>
           </Card.Title>
-          <Card.Text as="div">
-            <div className="mb-2">
+          <Card.Text as="div" className="text-content">
+            <div className="mb-2 text-content">
               <strong>Temperature:</strong> {weatherState.data?.temperature}°F
             </div>
             <div className="mb-2">
@@ -206,8 +206,8 @@ export const WeatherCard = React.memo(
               <strong>Wind Speed:</strong> {weatherState.data?.windSpeed} MPH
             </div>
           </Card.Text>
-          <div className="text-muted mt-3">
-            <small>
+          <div className="text-muted mt-3 text-small">
+            <small className="text-small">
               Last updated:{" "}
               {weatherState.data?.timestamp
                 ? new Date(weatherState.data.timestamp).toLocaleTimeString()

@@ -70,6 +70,7 @@ const FormSection = React.memo(({ onAdd }) => {
               placeholder="Enter city name"
               value={newLocation}
               onChange={(e) => setNewLocation(e.target.value)}
+              className="text-content"
             />
           </Form.Group>
         </Col>
@@ -78,6 +79,7 @@ const FormSection = React.memo(({ onAdd }) => {
             type="submit"
             variant="primary"
             disabled={!newLocation.trim()}
+            className="text-content"
           >
             Add Location
           </Button>
@@ -91,7 +93,7 @@ const DebugPanel = React.memo(({ user, locations }) => {
   if (process.env.NODE_ENV === "production") return null;
 
   return (
-    <div className="mb-3 p-2 bg-light border rounded">
+    <div className="mb-3 p-2 bg-light border rounded text-small">
       <small>
         <pre className="mb-0">
           {JSON.stringify(
@@ -134,7 +136,7 @@ export const Dashboard = () => {
 
     if (!user) {
       return (
-        <Alert variant="warning">
+        <Alert variant="warning" className="text-content">
           Please log in to view your weather dashboard.
         </Alert>
       );
@@ -143,7 +145,7 @@ export const Dashboard = () => {
     // Only show locations loading spinner when needed
     if (isLoading) {
       return (
-        <div className="d-flex justify-content-center py-5">
+        <div className="d-flex justify-content-center py-5 text-content">
           <LoadingSpinner />
         </div>
       );
@@ -152,12 +154,12 @@ export const Dashboard = () => {
     return (
       <>
         <DebugPanel user={user} locations={locations} />
-        <h2 className="mb-4">My Weather Dashboard</h2>
+        <h2 className="mb-4 text-title">My Weather Dashboard</h2>
         
         <FormSection onAdd={addLocation} />
 
         {error && (
-          <Alert variant="danger" dismissible onClose={clearError}>
+          <Alert variant="danger" dismissible onClose={clearError} className="text-content">
             {error}
           </Alert>
         )}
@@ -168,7 +170,7 @@ export const Dashboard = () => {
         />
 
         {locations.length === 0 && !error && (
-          <Alert variant="info">
+          <Alert variant="info" className="text-content">
             No locations added yet. Add a city to get started!
           </Alert>
         )}

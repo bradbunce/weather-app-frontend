@@ -1,14 +1,21 @@
-import React from "react";
-import { Navbar, Nav, Container, Button } from "react-bootstrap";
+import React, { useEffect } from "react";
+import { Navbar, Nav, Container, Button, ButtonGroup } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { Sun, Moon } from "lucide-react";
+import { useFontSize } from "../contexts/FontSizeContext";
+import { Sun, Moon, Minus, Plus } from "lucide-react";
 
 export const NavigationBar = () => {
   const { isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { fontSize, increaseFontSize, decreaseFontSize } = useFontSize();
   const navigate = useNavigate();
+
+  // Update CSS variable when fontSize changes
+  useEffect(() => {
+    document.documentElement.style.setProperty('--base-font-size', `${fontSize}px`);
+  }, [fontSize]);
 
   const handleLogout = () => {
     logout();
@@ -51,11 +58,31 @@ export const NavigationBar = () => {
                 </Button>
               </>
             )}
+            <ButtonGroup className="ms-2 me-2">
+              <Button
+                variant="outline-theme"
+                size="sm"
+                onClick={decreaseFontSize}
+                className="d-flex align-items-center"
+                style={{ padding: '0.4rem' }}
+              >
+                <Minus size={18} />
+              </Button>
+              <Button
+                variant="outline-theme"
+                size="sm"
+                onClick={increaseFontSize}
+                className="d-flex align-items-center"
+                style={{ padding: '0.4rem' }}
+              >
+                <Plus size={18} />
+              </Button>
+            </ButtonGroup>
             <Button
               variant="outline-theme"
               size="sm"
               onClick={toggleTheme}
-              className="ms-2 d-flex align-items-center"
+              className="d-flex align-items-center"
               style={{ padding: '0.4rem' }}
             >
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
