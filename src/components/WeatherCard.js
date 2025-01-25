@@ -137,11 +137,12 @@ export const WeatherCard = React.memo(
                 variant="outline-danger"
                 size="sm"
                 onClick={() => onRemove(location.location_id)}
+                className="text-content"
               >
                 Remove
               </Button>
             </Card.Title>
-            <div className="text-center">
+            <div className="text-center text-content">
               <Spinner animation="border" role="status" className="mb-2" />
               <div>Loading weather data...</div>
             </div>
@@ -155,21 +156,23 @@ export const WeatherCard = React.memo(
       return (
         <Card className={`h-100 theme-${theme}`}>
           <Card.Body>
-            <Card.Title className="d-flex justify-content-between align-items-start">
+            <Card.Title className="d-flex justify-content-between align-items-start text-title">
               {location.city_name}
               <Button
                 variant="outline-danger"
                 size="sm"
                 onClick={() => onRemove(location.location_id)}
+                className="text-content"
               >
                 Remove
               </Button>
             </Card.Title>
-            <div className="text-danger my-3">{weatherState.error}</div>
+            <div className="text-danger my-3 text-content">{weatherState.error}</div>
             <Button
               variant="outline-secondary"
               size="sm"
               onClick={handleRefresh}
+              className="text-content"
             >
               Retry
             </Button>
@@ -182,18 +185,19 @@ export const WeatherCard = React.memo(
     return (
       <Card className={`h-100 theme-${theme}`}>
         <Card.Body>
-          <Card.Title className="d-flex justify-content-between align-items-start">
+          <Card.Title className="d-flex justify-content-between align-items-start text-title">
             {location.city_name}
             <Button
               variant="outline-danger"
               size="sm"
               onClick={() => onRemove(location.location_id)}
+              className="text-content"
             >
               Remove
             </Button>
           </Card.Title>
           <Card.Text as="div" className="text-content">
-            <div className="mb-2 text-content">
+            <div className="mb-2">
               <strong>Temperature:</strong> {weatherState.data?.temperature}°F
             </div>
             <div className="mb-2">
@@ -207,7 +211,7 @@ export const WeatherCard = React.memo(
             </div>
           </Card.Text>
           <div className="text-muted mt-3 text-small">
-            <small className="text-small">
+            <small>
               Last updated:{" "}
               {weatherState.data?.timestamp
                 ? new Date(weatherState.data.timestamp).toLocaleTimeString()
@@ -218,7 +222,7 @@ export const WeatherCard = React.memo(
             variant="outline-secondary"
             size="sm"
             onClick={handleRefresh}
-            className="mt-2"
+            className="mt-2 text-content"
           >
             Refresh
           </Button>
