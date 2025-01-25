@@ -275,47 +275,77 @@ const AuthProviderComponent = ({ children, flags, ldClient, onReady }) => {
 
   const logout = useCallback(async () => {
     logger.info("Initiating logout process");
+    
+    // Set loading state to prevent re-renders
+    updateAuthState({
+      isLoading: true
+    });
+
     try {
-        // Dispatch a custom event for WebSocket cleanup
-        window.dispatchEvent(new CustomEvent('auth-logout-started', {
-            detail: { token: authState.user?.token }
-        }));
+      // First, notify WebSocket to cleanup
+      window.dispatchEvent(new CustomEvent('auth-logout-started', {
+        detail: { token: authState.user?.token }
+      }));
 
-        const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-        if (currentToken) {
-            try {
-                await axios.post(
-                    `${AUTH_API_URL}/logout`,
-                    {},
-                    {
-                        headers: {
-                            Authorization: formatTokenForApi(currentToken, true),
-                        },
-                    }
-                );
-            } catch (error) {
-                logger.warn("Logout API notification failed", {
-                    error: error.message,
-                    stack: error.stack,
-                });
+      // Wait for WebSocket cleanup
+      await new Promise(resolve => {
+        const cleanup = () => {
+          window.removeEventListener('websocket-cleanup-complete', cleanup);
+          resolve();
+        };
+        window.addEventListener('websocket-cleanup-complete', cleanup);
+        setTimeout(cleanup, 1000); // Fallback timeout
+      });
+
+      // Then handle token cleanup
+      const currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (currentToken) {
+        try {
+          await axios.post(
+            `${AUTH_API_URL}/logout`,
+            {},
+            {
+              headers: {
+                Authorization: formatTokenForApi(currentToken, true),
+              },
             }
-        }
-    } catch (error) {
-        logger.error("Logout process error", {
+          );
+        } catch (error) {
+          logger.warn("Logout API notification failed", {
             error: error.message,
-            stack: error.stack,
-        });
-    } finally {
-        window.dispatchEvent(new Event("auth-logout"));
+          });
+        }
+      }
 
-        updateAuthState({
-            user: null,
-            isAuthenticated: false
-        });
-        
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        delete axios.defaults.headers.common["Authorization"];
-        logger.info("Logout complete");
+      // Clear auth state and storage
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      delete axios.defaults.headers.common["Authorization"];
+
+      // Finally update auth state
+      updateAuthState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false
+      });
+
+      logger.info("Logout complete");
+      
+      // Notify about logout completion
+      window.dispatchEvent(new Event("auth-logout"));
+    } catch (error) {
+      logger.error("Logout process error", {
+        error: error.message,
+      });
+      
+      // Ensure we still cleanup even on error
+      updateAuthState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false
+      });
+      
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      delete axios.defaults.headers.common["Authorization"];
     }
 }, [authState.user, logger, updateAuthState, formatTokenForApi]);
 

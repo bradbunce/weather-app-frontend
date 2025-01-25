@@ -289,6 +289,7 @@ class WebSocketService {
     this.reconnectAttempts = 0;
 
     this.logger.info("WebSocket cleanup completed");
+    window.dispatchEvent(new Event('websocket-cleanup-complete'));
   }
 }
 
