@@ -60,7 +60,7 @@ export const NavigationBar = () => {
       <Container>
         <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
           <img
-            src={require('../assets/images/LD_Logo.png')}
+            src={require('../assets/images/LD_logo_white.png')}
             alt="Weather App Logo"
             className="navbar-logo me-2"
           />
