@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Navbar, Nav, Container, Button, ButtonGroup } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,6 +18,12 @@ export const NavigationBar = () => {
   const { fontSize, increaseFontSize, decreaseFontSize } = useFontSize();
   const navigate = useNavigate();
   const logger = useLogger();
+  const [expanded, setExpanded] = useState(false);
+
+  // Handle menu item click
+  const handleNavClick = useCallback(() => {
+    setExpanded(false);
+  }, []);
 
   // Update CSS variable when fontSize changes
   useEffect(() => {
@@ -56,7 +62,7 @@ export const NavigationBar = () => {
   });
 
   return (
-    <Navbar expand="lg" className="navbar-dark">
+    <Navbar expand="lg" className="navbar-dark" expanded={expanded} onToggle={setExpanded}>
       <Container>
         <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
           <img
@@ -71,25 +77,28 @@ export const NavigationBar = () => {
           <Nav className="ms-auto align-items-center">
             {!isAuthenticated ? (
               <>
-                <Nav.Link as={Link} to="/login">
+                <Nav.Link as={Link} to="/login" onClick={handleNavClick}>
                   Login
                 </Nav.Link>
-                <Nav.Link as={Link} to="/register">
+                <Nav.Link as={Link} to="/register" onClick={handleNavClick}>
                   Register
                 </Nav.Link>
               </>
             ) : (
               <>
-                <Nav.Link as={Link} to="/dashboard">
+                <Nav.Link as={Link} to="/dashboard" onClick={handleNavClick}>
                   Dashboard
                 </Nav.Link>
-                <Nav.Link as={Link} to="/profile">
+                <Nav.Link as={Link} to="/profile" onClick={handleNavClick}>
                   Profile
                 </Nav.Link>
                 <Button 
                   variant="link" 
                   as={Nav.Link} 
-                  onClick={handleLogout}
+                  onClick={(e) => {
+                    handleNavClick();
+                    handleLogout(e);
+                  }}
                   className="me-2"
                 >
                   Logout
@@ -100,7 +109,10 @@ export const NavigationBar = () => {
             <Button
               variant="link"
               size="sm"
-              onClick={handleThemeToggle}
+              onClick={(e) => {
+                handleNavClick();
+                handleThemeToggle(e);
+              }}
               className="d-flex align-items-center text-white me-2"
               style={{ padding: '0.4rem' }}
               aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
@@ -116,7 +128,10 @@ export const NavigationBar = () => {
               <Button
                 variant="link"
                 size="sm"
-                onClick={handleIncreaseFontSize}
+                onClick={(e) => {
+                  handleNavClick();
+                  handleIncreaseFontSize(e);
+                }}
                 className="d-flex align-items-center text-white"
                 style={{ padding: '0.4rem' }}
                 aria-label="Increase font size"
@@ -126,7 +141,10 @@ export const NavigationBar = () => {
               <Button
                 variant="link"
                 size="sm"
-                onClick={handleDecreaseFontSize}
+                onClick={(e) => {
+                  handleNavClick();
+                  handleDecreaseFontSize(e);
+                }}
                 className="theme-toggle d-flex align-items-center text-white"
                 style={{ padding: '0.4rem' }}
                 aria-label="Decrease font size"
