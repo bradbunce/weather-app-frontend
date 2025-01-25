@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Form,
   Button,
@@ -12,8 +12,20 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { LoadingSpinner } from "./LoadingSpinner";
+import { useLogger } from "../utils/logger";
+
+/**
+ * Login component
+ * Handles user authentication and password reset functionality
+ */
 
 export const Login = () => {
+  // Hooks
+  const navigate = useNavigate();
+  const { login, resetPassword } = useAuth();
+  const logger = useLogger();
+
+  // State management
   const [credentials, setCredentials] = useState({
     username: "",
     password: "",
@@ -25,59 +37,84 @@ export const Login = () => {
   const [resetError, setResetError] = useState("");
   const [resetSuccess, setResetSuccess] = useState("");
 
-  const navigate = useNavigate();
-  const { login, resetPassword } = useAuth();
-
-  const handleSubmit = async (e) => {
+  // Handle login form submission
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
+    logger.debug('Attempting login', { username: credentials.username });
+
     try {
       setError("");
       setLoading(true);
       
-      // Wait for login to complete
+      // Attempt login
       await login(credentials);
+      
+      logger.info('Login successful', { username: credentials.username });
       
       // Navigate to dashboard after successful login
       navigate("/dashboard", { replace: true });  // Using replace to avoid back-button issues
       
     } catch (err) {
-      console.error("Login error:", err);
+      logger.error('Login failed', { 
+        error: err.message,
+        username: credentials.username
+      });
       setError(err.response?.data?.error || err.message || "Failed to log in");
     } finally {
       setLoading(false);
     }
-  };
+  }, [credentials, login, navigate, logger]);
 
-  const handleChange = (e) => {
+  // Handle form input changes
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
+    logger.debug('Updating credentials', { field: name });
     setCredentials((prev) => ({
       ...prev,
       [name]: value,
     }));
-  };
+  }, [logger]);
 
-  const handlePasswordResetSubmit = async (e) => {
+  // Handle password reset request
+  const handlePasswordResetSubmit = useCallback(async (e) => {
     e.preventDefault();
+    logger.debug('Attempting password reset', { email: resetEmail });
+
     try {
       setResetError("");
       setResetSuccess("");
       await resetPassword(resetEmail);
+      
+      logger.info('Password reset email sent', { email: resetEmail });
       setResetSuccess("Password reset link sent to your email");
       setResetEmail("");
     } catch (err) {
-      console.error("Password reset error:", err);
+      logger.error('Password reset failed', { 
+        error: err.message,
+        email: resetEmail 
+      });
       setResetError(err.response?.data?.error || err.message || "Failed to send reset link");
     }
-  };
+  }, [resetEmail, resetPassword, logger]);
 
-  const handleCloseResetModal = () => {
+  // Handle modal close
+  const handleCloseResetModal = useCallback(() => {
+    logger.debug('Closing password reset modal');
     setShowResetModal(false);
     setResetError("");
     setResetSuccess("");
     setResetEmail("");
-  };
+  }, [logger]);
 
+  // Handle reset email input changes
+  const handleResetEmailChange = useCallback((e) => {
+    logger.debug('Updating reset email');
+    setResetEmail(e.target.value);
+  }, [logger]);
+
+  // Show loading spinner while processing
   if (loading) {
+    logger.debug('Showing loading spinner');
     return (
       <Container className="d-flex justify-content-center align-items-center login-container" style={{ minHeight: "50vh" }}>
         <LoadingSpinner />
@@ -85,6 +122,7 @@ export const Login = () => {
     );
   }
 
+  logger.debug('Rendering login form');
   return (
     <Container className="login-container">
       <Row className="justify-content-md-center">
@@ -135,7 +173,7 @@ export const Login = () => {
         </Col>
       </Row>
 
-      {/* Password Reset Modal */}
+      {/* Password reset modal */}
       <Modal show={showResetModal} onHide={handleCloseResetModal}>
         <Modal.Header closeButton>
           <Modal.Title>Reset Password</Modal.Title>
@@ -153,7 +191,7 @@ export const Login = () => {
               <Form.Control
                 type="email"
                 value={resetEmail}
-                onChange={(e) => setResetEmail(e.target.value)}
+                onChange={handleResetEmailChange}
                 placeholder="Enter your email"
                 required
               />

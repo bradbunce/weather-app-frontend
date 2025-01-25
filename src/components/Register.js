@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Form,
   Button,
@@ -10,10 +10,28 @@ import {
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useLogger } from "../utils/logger";
 
+// Constants
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 
+// Utility functions
+const validateEmail = (email) => {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+};
+
+/**
+ * Register component
+ * Handles new user registration with email validation
+ */
+
 export const Register = () => {
+  // Hooks
+  const navigate = useNavigate();
+  const logger = useLogger();
+
+  // State management
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -22,22 +40,23 @@ export const Register = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
-
-  const handleSubmit = async (e) => {
+  // Handle form submission
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
+    logger.debug('Attempting registration', { 
+      username: formData.username,
+      email: formData.email 
+    });
     
     // Form validation
     if (formData.password !== formData.confirmPassword) {
+      logger.warn('Password mismatch during registration');
       return setError("Passwords do not match");
     }
 
     if (!validateEmail(formData.email)) {
+      logger.warn('Invalid email format', { email: formData.email });
       return setError("Please enter a valid email address");
     }
 
@@ -45,6 +64,7 @@ export const Register = () => {
       setError("");
       setLoading(true);
       
+      logger.debug('Sending registration request');
       const response = await axios.post(`${AUTH_API_URL}/register`, {
         username: formData.username,
         email: formData.email,
@@ -55,9 +75,15 @@ export const Register = () => {
         throw new Error(response.data.error);
       }
       
+      logger.info('Registration successful', { 
+        username: formData.username 
+      });
       navigate("/login");
     } catch (err) {
-      console.error("Registration error:", err);
+      logger.error('Registration failed', {
+        error: err.message,
+        username: formData.username
+      });
       setError(
         err.response?.data?.error ||
         err.response?.data?.message ||
@@ -67,15 +93,25 @@ export const Register = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, navigate, logger]);
 
-  const handleChange = (e) => {
+  // Handle form input changes
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
+    logger.debug('Updating registration form', { field: name });
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-  };
+  }, [logger]);
+
+  // Handle error dismissal
+  const handleDismissError = useCallback(() => {
+    logger.debug('Dismissing registration error');
+    setError("");
+  }, [logger]);
+
+  logger.debug('Rendering registration form');
 
   return (
     <Container className="register-container">
@@ -88,7 +124,7 @@ export const Register = () => {
                 <Alert
                   variant="danger"
                   dismissible
-                  onClose={() => setError("")}
+                  onClose={handleDismissError}
                 >
                   {error}
                 </Alert>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Form,
   Button,
@@ -11,8 +11,34 @@ import {
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useLogger } from "../utils/logger";
 
+// Utility functions
+const validatePassword = (newPassword, confirmPassword) => {
+  return !newPassword || newPassword === confirmPassword;
+};
+
+const validateUsername = (username) => {
+  return !username || (username.length >= 3 && username.length <= 50);
+};
+
+const validateEmail = (email) => {
+  if (!email) return true;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+/**
+ * Profile component
+ * Handles user profile updates including password changes
+ */
 const Profile = () => {
+  // Hooks
+  const { updatePassword, updateProfile, currentUser, isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const logger = useLogger();
+
+  // State management
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,21 +50,18 @@ const Profile = () => {
     email: "",
   });
 
-  const { updatePassword, updateProfile, currentUser, isAuthenticated, isLoading } = useAuth();
-  const navigate = useNavigate();
-
-  // Redirect if not authenticated
+  // Authentication check and redirect
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      console.log("User not authenticated, redirecting to login");
+      logger.info("Unauthenticated user accessing profile, redirecting to login");
       navigate("/login", { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate, logger]);
 
   // Load user data
   useEffect(() => {
     if (currentUser) {
-      console.log("Loading current user data:", {
+      logger.debug("Loading user profile data", {
         username: currentUser.username,
         email: currentUser.email
       });
@@ -48,38 +71,46 @@ const Profile = () => {
         email: currentUser.email || "",
       }));
     } else {
-      console.log("No current user data available");
+      logger.debug("No user data available");
     }
-  }, [currentUser]);
+  }, [currentUser, logger]);
 
-  const validateForm = () => {
-    // Password validation
-    if (formData.newPassword && formData.newPassword !== formData.confirmPassword) {
+  // Form validation
+  const validateForm = useCallback(() => {
+    logger.debug("Validating profile form", {
+      hasNewPassword: !!formData.newPassword,
+      username: formData.username,
+      email: formData.email
+    });
+
+    if (!validatePassword(formData.newPassword, formData.confirmPassword)) {
+      logger.warn("Password validation failed - passwords don't match");
       setError("Passwords do not match");
       return false;
     }
 
-    // Username validation
-    if (formData.username && (formData.username.length < 3 || formData.username.length > 50)) {
+    if (!validateUsername(formData.username)) {
+      logger.warn("Username validation failed", { username: formData.username });
       setError("Username must be between 3 and 50 characters");
       return false;
     }
 
-    // Email validation
-    if (formData.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        setError("Please enter a valid email address");
-        return false;
-      }
+    if (!validateEmail(formData.email)) {
+      logger.warn("Email validation failed", { email: formData.email });
+      setError("Please enter a valid email address");
+      return false;
     }
 
     return true;
-  };
+  }, [formData, logger]);
 
-  const handleSubmit = async (e) => {
+  // Handle form submission
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
-    console.log("Form submission started", { formData });
+    logger.debug("Profile update initiated", { 
+      hasPasswordUpdate: !!formData.newPassword,
+      hasProfileChanges: formData.username !== currentUser?.username || formData.email !== currentUser?.email
+    });
 
     if (!validateForm()) {
       return;
@@ -92,17 +123,17 @@ const Profile = () => {
 
       const updatePromises = [];
 
+      // Queue password update if needed
       if (formData.newPassword) {
-        console.log("Adding password update to queue");
+        logger.debug("Queueing password update");
         updatePromises.push(updatePassword(formData.currentPassword, formData.newPassword));
       }
 
+      // Queue profile update if needed
       if (formData.username !== currentUser?.username || formData.email !== currentUser?.email) {
-        console.log("Adding profile update to queue", {
-          oldUsername: currentUser?.username,
-          newUsername: formData.username,
-          oldEmail: currentUser?.email,
-          newEmail: formData.email
+        logger.debug("Queueing profile update", {
+          usernameChanged: formData.username !== currentUser?.username,
+          emailChanged: formData.email !== currentUser?.email
         });
         
         updatePromises.push(
@@ -116,8 +147,10 @@ const Profile = () => {
 
       if (updatePromises.length > 0) {
         await Promise.all(updatePromises);
+        logger.info("Profile updated successfully");
         setMessage("Profile updated successfully!");
 
+        // Reset sensitive form fields
         setFormData(prev => ({
           ...prev,
           currentPassword: "",
@@ -125,31 +158,41 @@ const Profile = () => {
           confirmPassword: "",
         }));
 
+        // Redirect after short delay
         setTimeout(() => {
           navigate("/dashboard");
         }, 2000);
       } else {
-        console.log("No changes detected to update");
+        logger.debug("No profile changes detected");
         setMessage("No changes were made to update");
       }
     } catch (error) {
-      console.error("Profile update error:", error);
+      logger.error("Profile update failed", { error: error.message });
       setError(error.message || "An error occurred while updating your profile");
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, currentUser, updatePassword, updateProfile, validateForm, navigate, logger]);
 
-  const handleChange = (e) => {
+  // Handle form input changes
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
+    logger.debug("Updating profile form field", { field: name });
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-  };
+  }, [logger]);
 
-  // Show loading spinner while auth state is initializing
+  // Handle error dismissal
+  const handleDismissError = useCallback(() => {
+    logger.debug("Dismissing profile error");
+    setError("");
+  }, [logger]);
+
+  // Loading state
   if (isLoading) {
+    logger.debug("Showing auth loading spinner");
     return (
       <Container className="profile-container">
         <Row className="justify-content-md-center">
@@ -163,8 +206,9 @@ const Profile = () => {
     );
   }
 
-  // Don't render form until we have user data
+  // No user data state
   if (!currentUser) {
+    logger.warn("Attempting to render profile without user data");
     return (
       <Container className="profile-container">
         <Row className="justify-content-md-center">
@@ -186,7 +230,7 @@ const Profile = () => {
             <Card.Body>
               <h2 className="text-center mb-4">Update Profile</h2>
               {error && (
-                <Alert variant="danger" dismissible onClose={() => setError("")}>
+                <Alert variant="danger" dismissible onClose={handleDismissError}>
                   {error}
                 </Alert>
               )}

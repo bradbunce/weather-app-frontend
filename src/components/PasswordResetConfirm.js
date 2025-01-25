@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Form,
   Button,
@@ -11,24 +11,48 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import axios from 'axios';
+import { useLogger } from "../utils/logger";
 
+// Constants
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;
 
+// Utility functions
+const validatePassword = (password) => {
+  return password.length >= 8;
+};
+
+const validatePasswordMatch = (password, confirmPassword) => {
+  return password === confirmPassword;
+};
+
+/**
+ * PasswordResetConfirm component
+ * Handles password reset confirmation with token validation
+ */
+
 export const PasswordResetConfirm = () => {
+  // Hooks
+  const navigate = useNavigate();
+  const { confirmPasswordReset } = useAuth();
+  const logger = useLogger();
+  const [searchParams] = useSearchParams();
+  const resetToken = searchParams.get('token');
+
+  // State management
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true); // Start with loading true
   const [tokenValid, setTokenValid] = useState(false);
-  const [searchParams] = useSearchParams();
-  const resetToken = searchParams.get('token');
-  const navigate = useNavigate();
-  const { confirmPasswordReset } = useAuth();
 
+  // Validate reset token on component mount
   useEffect(() => {
     const validateToken = async () => {
+      logger.debug('Validating password reset token');
+
       if (!resetToken) {
+        logger.warn('No reset token provided');
         setError("The password reset link is invalid. Please request a new password reset link.");
         setLoading(false);
         setTimeout(() => {
@@ -38,14 +62,16 @@ export const PasswordResetConfirm = () => {
       }
 
       try {
-        // Just await the request, don't store response
+        logger.debug('Sending token validation request');
         await axios.post(`${AUTH_API_URL}/validate-reset-token`, {
           resetToken
         });
         
+        logger.info('Reset token validated successfully');
         setTokenValid(true);
         setLoading(false);
       } catch (err) {
+        logger.error('Token validation failed', { error: err.message });
         setError(
           err.response?.data?.error === "Invalid or expired reset token"
             ? "This reset link has expired or already been used. Please request a new password reset."
@@ -59,17 +85,23 @@ export const PasswordResetConfirm = () => {
     };
 
     validateToken();
-  }, [resetToken, navigate]);
+  }, [resetToken, navigate, logger]);
 
-  const handleSubmit = async (e) => {
+  // Handle password update
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
+    logger.debug('Password reset form submitted');
 
-    if (newPassword !== confirmPassword) {
+    // Validate password match
+    if (!validatePasswordMatch(newPassword, confirmPassword)) {
+      logger.warn('Password mismatch in reset form');
       setError("The passwords you entered don't match. Please try again.");
       return;
     }
 
-    if (newPassword.length < 8) {
+    // Validate password length
+    if (!validatePassword(newPassword)) {
+      logger.warn('Password too short in reset form');
       setError("Your password must be at least 8 characters long.");
       return;
     }
@@ -79,21 +111,42 @@ export const PasswordResetConfirm = () => {
       setSuccess("");
       setLoading(true);
 
+      logger.debug('Attempting to reset password');
       await confirmPasswordReset(resetToken, newPassword);
       
+      logger.info('Password reset successful');
       setSuccess("Your password has been successfully reset! You'll be redirected to the login page.");
       setTimeout(() => {
         navigate("/login");
       }, 3000);
     } catch (err) {
+      logger.error('Password reset failed', { error: err.message });
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [newPassword, confirmPassword, resetToken, confirmPasswordReset, navigate, logger]);
 
-  // Show loading state
+  // Handle password input changes
+  const handlePasswordChange = useCallback((e) => {
+    logger.debug('Updating new password field');
+    setNewPassword(e.target.value);
+  }, [logger]);
+
+  const handleConfirmPasswordChange = useCallback((e) => {
+    logger.debug('Updating confirm password field');
+    setConfirmPassword(e.target.value);
+  }, [logger]);
+
+  // Handle error dismissal
+  const handleDismissError = useCallback(() => {
+    logger.debug('Dismissing password reset error');
+    setError("");
+  }, [logger]);
+
+  // Loading state
   if (loading) {
+    logger.debug('Showing loading state');
     return (
       <Container>
         <Row className="justify-content-md-center mt-5">
@@ -108,8 +161,9 @@ export const PasswordResetConfirm = () => {
     );
   }
 
-  // Show error state if token is invalid
+  // Invalid token state
   if (!tokenValid) {
+    logger.debug('Showing invalid token state');
     return (
       <Container>
         <Row className="justify-content-md-center mt-5">
@@ -126,7 +180,8 @@ export const PasswordResetConfirm = () => {
     );
   }
 
-  // Show password reset form only if token is valid
+  logger.debug('Rendering password reset form');
+  
   return (
     <Container>
       <Row className="justify-content-md-center">
@@ -135,7 +190,7 @@ export const PasswordResetConfirm = () => {
             <Card.Body>
               <h2 className="text-center mb-4">Create New Password</h2>
               {error && (
-                <Alert variant="danger" dismissible onClose={() => setError("")}>
+                <Alert variant="danger" dismissible onClose={handleDismissError}>
                   {error}
                 </Alert>
               )}
@@ -150,7 +205,7 @@ export const PasswordResetConfirm = () => {
                   <Form.Control
                     type="password"
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     placeholder="Enter new password"
                     required
                     autoComplete="new-password"
@@ -165,7 +220,7 @@ export const PasswordResetConfirm = () => {
                   <Form.Control
                     type="password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={handleConfirmPasswordChange}
                     placeholder="Confirm new password"
                     required
                     autoComplete="new-password"

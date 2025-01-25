@@ -1,26 +1,59 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { Navbar, Nav, Container, Button, ButtonGroup } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useFontSize } from "../contexts/FontSizeContext";
+import { useLogger } from "../utils/logger";
 import { Sun, Moon, Minus, Plus } from "lucide-react";
 
+/**
+ * NavigationBar component
+ * Provides navigation, authentication controls, theme toggle, and font size controls
+ */
 export const NavigationBar = () => {
+  // Hooks
   const { isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { fontSize, increaseFontSize, decreaseFontSize } = useFontSize();
   const navigate = useNavigate();
+  const logger = useLogger();
 
   // Update CSS variable when fontSize changes
   useEffect(() => {
+    logger.debug('Updating base font size', { fontSize });
     document.documentElement.style.setProperty('--base-font-size', `${fontSize}px`);
-  }, [fontSize]);
+  }, [fontSize, logger]);
 
-  const handleLogout = () => {
+  // Handle theme toggle
+  const handleThemeToggle = useCallback(() => {
+    logger.debug('Toggling theme', { currentTheme: theme });
+    toggleTheme();
+  }, [theme, toggleTheme, logger]);
+
+  // Handle font size changes
+  const handleIncreaseFontSize = useCallback(() => {
+    logger.debug('Increasing font size', { currentSize: fontSize });
+    increaseFontSize();
+  }, [fontSize, increaseFontSize, logger]);
+
+  const handleDecreaseFontSize = useCallback(() => {
+    logger.debug('Decreasing font size', { currentSize: fontSize });
+    decreaseFontSize();
+  }, [fontSize, decreaseFontSize, logger]);
+
+  // Handle logout
+  const handleLogout = useCallback(() => {
+    logger.info('User logging out');
     logout();
     navigate("/");
-  };
+  }, [logout, navigate, logger]);
+
+  logger.debug('Rendering NavigationBar', { 
+    isAuthenticated, 
+    theme,
+    fontSize 
+  });
 
   return (
     <Navbar expand="lg" className="navbar-dark">
@@ -58,34 +91,40 @@ export const NavigationBar = () => {
                 </Button>
               </>
             )}
+            {/* Theme toggle button */}
             <Button
               variant="link"
               size="sm"
-              onClick={toggleTheme}
+              onClick={handleThemeToggle}
               className="d-flex align-items-center text-white me-2"
               style={{ padding: '0.4rem' }}
+              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
             >
               {theme === 'light' ? 
                 <Moon style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} /> : 
                 <Sun style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} />
               }
             </Button>
+
+            {/* Font size controls */}
             <ButtonGroup className="font-size-controls">
               <Button
                 variant="link"
                 size="sm"
-                onClick={increaseFontSize}
+                onClick={handleIncreaseFontSize}
                 className="d-flex align-items-center text-white"
                 style={{ padding: '0.4rem' }}
+                aria-label="Increase font size"
               >
                 <Plus style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} />
               </Button>
               <Button
                 variant="link"
                 size="sm"
-                onClick={decreaseFontSize}
+                onClick={handleDecreaseFontSize}
                 className="theme-toggle d-flex align-items-center text-white"
                 style={{ padding: '0.4rem' }}
+                aria-label="Decrease font size"
               >
                 <Minus style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} />
               </Button>
