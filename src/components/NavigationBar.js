@@ -58,8 +58,13 @@ export const NavigationBar = () => {
   return (
     <Navbar expand="lg" className="navbar-dark">
       <Container>
-        <Navbar.Brand as={Link} to="/">
-          LaunchDarkly Weather App Demo
+        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
+          <img
+            src={require('../assets/images/LD_Logo.png')}
+            alt="Weather App Logo"
+            className="navbar-logo me-2"
+          />
+          Weather App
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">

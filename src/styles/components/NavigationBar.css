@@ -4,6 +4,19 @@
   padding: 0.5rem 1rem !important;
 }
 
+/* Logo styles */
+.navbar-logo {
+  height: calc(var(--base-font-size) * 1.5);
+  width: auto;
+  transition: height 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .navbar-logo {
+    height: calc(var(--base-font-size) * 1.25);
+  }
+}
+
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .navbar {
