@@ -46,7 +46,7 @@ export const NavigationBar = () => {
   const handleLogout = useCallback(() => {
     logger.info('User logging out');
     logout();
-    navigate("/");
+    navigate("/", { replace: true }); // Using replace to prevent back navigation to authenticated pages
   }, [logout, navigate, logger]);
 
   logger.debug('Rendering NavigationBar', { 
