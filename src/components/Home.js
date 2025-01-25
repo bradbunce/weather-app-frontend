@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 export const Home = () => {
   return (
-    <Container className="text-center">
+    <Container className="text-center home-container">
       <Row className="justify-content-center">
         <Col md={8}>
           <h1 className="mb-4">Welcome to Weather App</h1>

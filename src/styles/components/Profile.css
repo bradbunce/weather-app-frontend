@@ -1,0 +1,55 @@
+/* Profile component font size overrides */
+.profile-container h2 {
+  font-size: calc(var(--base-font-size) * 1.5) !important;
+}
+
+/* Form elements */
+.profile-container .form-label {
+  font-size: var(--base-font-size) !important;
+}
+
+.profile-container .form-control {
+  font-size: var(--base-font-size) !important;
+}
+
+.profile-container .form-control::placeholder {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Helper text */
+.profile-container .form-text {
+  font-size: calc(var(--base-font-size) * 0.875) !important;
+}
+
+.profile-container small {
+  font-size: calc(var(--base-font-size) * 0.875) !important;
+}
+
+/* Buttons */
+.profile-container .btn {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Alerts */
+.profile-container .alert {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Card */
+.profile-container .card {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Loading spinner text */
+.profile-container .spinner-container {
+  font-size: var(--base-font-size) !important;
+}
+
+.profile-container .visually-hidden {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Divider */
+.profile-container hr {
+  margin: calc(var(--base-font-size) * 1.5) 0;
+}

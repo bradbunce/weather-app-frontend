@@ -1,0 +1,42 @@
+/* Register component font size overrides */
+.register-container h2 {
+  font-size: calc(var(--base-font-size) * 1.5) !important;
+}
+
+/* Form elements */
+.register-container .form-label {
+  font-size: var(--base-font-size) !important;
+}
+
+.register-container .form-control {
+  font-size: var(--base-font-size) !important;
+}
+
+.register-container .form-control::placeholder {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Buttons */
+.register-container .btn {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Alerts */
+.register-container .alert {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Card */
+.register-container .card {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Loading text */
+.register-container .spinner-container {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Helper text */
+.register-container .text-muted {
+  font-size: calc(var(--base-font-size) * 0.875) !important;
+}

@@ -79,14 +79,14 @@ export const Login = () => {
 
   if (loading) {
     return (
-      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
+      <Container className="d-flex justify-content-center align-items-center login-container" style={{ minHeight: "50vh" }}>
         <LoadingSpinner />
       </Container>
     );
   }
 
   return (
-    <Container>
+    <Container className="login-container">
       <Row className="justify-content-md-center">
         <Col md={6}>
           <Card>

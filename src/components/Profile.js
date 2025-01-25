@@ -151,7 +151,7 @@ const Profile = () => {
   // Show loading spinner while auth state is initializing
   if (isLoading) {
     return (
-      <Container>
+      <Container className="profile-container">
         <Row className="justify-content-md-center">
           <Col md={6} className="text-center mt-5">
             <Spinner animation="border" role="status">
@@ -166,7 +166,7 @@ const Profile = () => {
   // Don't render form until we have user data
   if (!currentUser) {
     return (
-      <Container>
+      <Container className="profile-container">
         <Row className="justify-content-md-center">
           <Col md={6}>
             <Alert variant="warning">
@@ -179,7 +179,7 @@ const Profile = () => {
   }
 
   return (
-    <Container>
+      <Container className="profile-container">
       <Row className="justify-content-md-center">
         <Col md={6}>
           <Card>

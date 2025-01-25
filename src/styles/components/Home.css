@@ -1,0 +1,23 @@
+/* Home component font size overrides */
+.home-container h1 {
+  font-size: calc(var(--base-font-size) * 2) !important;
+}
+
+.home-container .lead {
+  font-size: calc(var(--base-font-size) * 1.25) !important;
+}
+
+.home-container .btn {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .home-container h1 {
+    font-size: calc(var(--base-font-size) * 1.75) !important;
+  }
+
+  .home-container .lead {
+    font-size: calc(var(--base-font-size) * 1.15) !important;
+  }
+}

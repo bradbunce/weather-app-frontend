@@ -1,0 +1,57 @@
+/* Login component font size overrides */
+.login-container h2 {
+  font-size: calc(var(--base-font-size) * 1.5) !important;
+}
+
+/* Form elements */
+.login-container .form-label {
+  font-size: var(--base-font-size) !important;
+}
+
+.login-container .form-control {
+  font-size: var(--base-font-size) !important;
+}
+
+.login-container .form-control::placeholder {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Buttons */
+.login-container .btn {
+  font-size: var(--base-font-size) !important;
+}
+
+.login-container .btn-link {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Alerts */
+.login-container .alert {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Modal */
+.modal-title {
+  font-size: calc(var(--base-font-size) * 1.25) !important;
+}
+
+.modal .form-label {
+  font-size: var(--base-font-size) !important;
+}
+
+.modal .form-control {
+  font-size: var(--base-font-size) !important;
+}
+
+.modal .btn {
+  font-size: var(--base-font-size) !important;
+}
+
+.modal .alert {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Loading text */
+.login-container .spinner-container {
+  font-size: var(--base-font-size) !important;
+}

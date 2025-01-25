@@ -78,7 +78,7 @@ export const Register = () => {
   };
 
   return (
-    <Container>
+    <Container className="register-container">
       <Row className="justify-content-md-center">
         <Col md={6}>
           <Card>
