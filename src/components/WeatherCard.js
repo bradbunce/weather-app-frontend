@@ -2,10 +2,12 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, Button, Spinner } from "react-bootstrap";
 import { useAuth } from "../contexts/AuthContext";
 import { useWebSocket } from "../contexts/WebSocketContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { useLogger } from "../utils/logger";
 
 export const WeatherCard = React.memo(
   ({ location, onRemove }) => {
+    const { theme } = useTheme();
     const componentId = useMemo(
       () => `weather-${location.location_id}`,
       [location.location_id]
@@ -127,7 +129,7 @@ export const WeatherCard = React.memo(
     // Render loading state
     if (weatherState.loading) {
       return (
-        <Card className="h-100">
+        <Card className={`h-100 theme-${theme}`}>
           <Card.Body>
             <Card.Title className="d-flex justify-content-between align-items-start">
               {location.city_name}
@@ -151,7 +153,7 @@ export const WeatherCard = React.memo(
     // Render error state
     if (weatherState.error) {
       return (
-        <Card className="h-100">
+        <Card className={`h-100 theme-${theme}`}>
           <Card.Body>
             <Card.Title className="d-flex justify-content-between align-items-start">
               {location.city_name}
@@ -178,7 +180,7 @@ export const WeatherCard = React.memo(
 
     // Render weather data
     return (
-      <Card className="h-100">
+      <Card className={`h-100 theme-${theme}`}>
         <Card.Body>
           <Card.Title className="d-flex justify-content-between align-items-start">
             {location.city_name}
@@ -227,4 +229,5 @@ export const WeatherCard = React.memo(
   (prevProps, nextProps) =>
     prevProps.location.location_id === nextProps.location.location_id &&
     prevProps.onRemove === nextProps.onRemove
+  // Not including theme in memo comparison since we want re-renders on theme changes
 );

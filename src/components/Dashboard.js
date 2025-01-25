@@ -4,6 +4,7 @@ import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useLocations } from "../contexts/LocationsContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { LoadingSpinner } from './LoadingSpinner';
 
 const LocationGrid = React.memo(({ locations, onRemove }) => (
@@ -110,6 +111,7 @@ const DebugPanel = React.memo(({ user, locations }) => {
 });
 
 export const Dashboard = () => {
+  const { theme } = useTheme();
   const { user, isLoading: isAuthLoading } = useAuth();
   const { 
     locations, 
@@ -183,5 +185,9 @@ export const Dashboard = () => {
     addLocation
   ]);
 
-  return <Container>{dashboardContent}</Container>;
+  return (
+    <Container className={`theme-${theme}`}>
+      {dashboardContent}
+    </Container>
+  );
 };

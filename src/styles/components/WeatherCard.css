@@ -1,0 +1,87 @@
+/* WeatherCard theme styles */
+.theme-light .card {
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  color: #000000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.theme-dark .card {
+  background-color: #1e1e1e;
+  border: 1px solid #2d2d2d;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.theme-light .card .text-muted {
+  color: #6c757d !important;
+}
+
+.theme-dark .card .text-muted {
+  color: #a0a0a0 !important;
+}
+
+/* WeatherCard button styles */
+.theme-light .card .btn-outline-danger {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.theme-dark .card .btn-outline-danger {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+.theme-dark .card .btn-outline-danger:hover {
+  background-color: #ff6b6b;
+  color: #1e1e1e;
+}
+
+.theme-light .card .btn-outline-secondary {
+  color: #6c757d;
+  border-color: #6c757d;
+}
+
+.theme-dark .card .btn-outline-secondary {
+  color: #a0a0a0;
+  border-color: #a0a0a0;
+}
+
+.theme-dark .card .btn-outline-secondary:hover {
+  background-color: #a0a0a0;
+  color: #1e1e1e;
+}
+
+/* WeatherCard loading spinner */
+.theme-dark .spinner-border {
+  border-color: #ffffff;
+  border-right-color: transparent;
+}
+
+/* WeatherCard error state */
+.theme-light .text-danger {
+  color: #dc3545 !important;
+}
+
+.theme-dark .text-danger {
+  color: #ff6b6b !important;
+}
+
+/* WeatherCard data section */
+.card-text {
+  margin-top: 1rem;
+}
+
+.card-text div {
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.theme-light .card-text div:hover {
+  background-color: #f8f9fa;
+}
+
+.theme-dark .card-text div:hover {
+  background-color: #2d2d2d;
+}
