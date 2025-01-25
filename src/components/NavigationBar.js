@@ -59,7 +59,7 @@ export const NavigationBar = () => {
     <Navbar expand="lg" className="navbar-dark">
       <Container>
         <Navbar.Brand as={Link} to="/">
-          Weather App
+          LaunchDarkly Weather App Demo
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
