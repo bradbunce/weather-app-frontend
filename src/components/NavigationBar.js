@@ -58,12 +58,12 @@ export const NavigationBar = () => {
                 </Button>
               </>
             )}
-            <ButtonGroup className="ms-2 me-2">
+            <ButtonGroup className="ms-2 me-2 font-size-controls">
               <Button
                 variant="outline-theme"
                 size="sm"
                 onClick={decreaseFontSize}
-                className="d-flex align-items-center"
+                className="theme-toggle d-flex align-items-center"
                 style={{ padding: '0.4rem' }}
               >
                 <Minus size={18} />

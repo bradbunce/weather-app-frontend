@@ -1,0 +1,38 @@
+/* Dashboard font size overrides */
+.dashboard-container h2 {
+  font-size: calc(var(--base-font-size) * 1.5) !important;
+}
+
+/* Form elements */
+.dashboard-container .form-control {
+  font-size: var(--base-font-size) !important;
+}
+
+.dashboard-container .btn {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Alerts */
+.dashboard-container .alert {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Debug panel */
+.dashboard-container .debug-panel {
+  font-size: calc(var(--base-font-size) * 0.875) !important;
+}
+
+/* Loading spinner text */
+.dashboard-container .spinner-container {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Form labels */
+.dashboard-container label {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Form input placeholder */
+.dashboard-container .form-control::placeholder {
+  font-size: var(--base-font-size) !important;
+}

@@ -188,7 +188,7 @@ export const Dashboard = () => {
   ]);
 
   return (
-    <Container className={`theme-${theme}`}>
+    <Container className={`theme-${theme} dashboard-container`}>
       {dashboardContent}
     </Container>
   );
