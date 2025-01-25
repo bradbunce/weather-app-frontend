@@ -3,6 +3,30 @@
   font-size: calc(var(--base-font-size) * 1.5) !important;
 }
 
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 1rem !important;
+  }
+
+  .login-container .card {
+    margin: 0 !important;
+  }
+
+  .login-container .card-body {
+    padding: 1rem !important;
+  }
+
+  /* Make modal take up more space on mobile */
+  .modal-dialog {
+    margin: 0.5rem !important;
+  }
+
+  .modal-body {
+    padding: 1rem !important;
+  }
+}
+
 /* Form elements */
 .login-container .form-label {
   font-size: var(--base-font-size) !important;

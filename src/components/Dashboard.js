@@ -62,24 +62,24 @@ const FormSection = React.memo(({ onAdd }) => {
 
   return (
     <Form onSubmit={handleSubmit} className="mb-4">
-      <Row className="align-items-center">
-        <Col sm={8} md={6}>
+      <Row className="align-items-center g-2">
+        <Col xs={12} sm={8} md={6}>
           <Form.Group>
             <Form.Control
               type="text"
               placeholder="Enter city name"
               value={newLocation}
               onChange={(e) => setNewLocation(e.target.value)}
-              className="text-content"
+              className="text-content w-100"
             />
           </Form.Group>
         </Col>
-        <Col sm={4} md={2}>
+        <Col xs={12} sm={4} md={2}>
           <Button
             type="submit"
             variant="primary"
             disabled={!newLocation.trim()}
-            className="text-content"
+            className="text-content w-100"
           >
             Add Location
           </Button>
