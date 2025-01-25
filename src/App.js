@@ -98,7 +98,14 @@ const AppContent = ({ ldReady, authReady }) => {
           // Application routes
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<Home />} />
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <Home />
+                </PublicRoute>
+              }
+            />
             <Route
               path="/login"
               element={
