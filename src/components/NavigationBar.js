@@ -23,7 +23,7 @@ export const NavigationBar = () => {
   };
 
   return (
-    <Navbar expand="lg">
+    <Navbar expand="lg" className="navbar-dark">
       <Container>
         <Navbar.Brand as={Link} to="/">
           Weather App
