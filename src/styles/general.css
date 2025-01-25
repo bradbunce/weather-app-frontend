@@ -19,48 +19,83 @@ code {
 }
 
 /* Theme styles */
-#light {
-  background-color: white;
+.theme-light {
+  background-color: #ffffff;
+  color: #000000;
 }
 
-#dark {
-  background-color: black;
+.theme-dark {
+  background-color: #121212;
+  color: #ffffff;
 }
 
-#light .App {
-  background-color: white;
-  color: black;
+/* Navbar theme styles */
+.theme-light .navbar {
+  background-color: #f8f9fa !important;
+  border-bottom: 1px solid #dee2e6;
 }
 
-#dark .App {
-  background-color: black;
-  color: white;
+.theme-dark .navbar {
+  background-color: #1e1e1e !important;
+  border-bottom: 1px solid #2d2d2d;
 }
 
-#dark .form-check-label {
-  color: white;
+.theme-light .navbar-brand,
+.theme-light .nav-link {
+  color: #000000 !important;
+}
+
+.theme-dark .navbar-brand,
+.theme-dark .nav-link {
+  color: #ffffff !important;
+}
+
+/* Form elements theme styles */
+.theme-dark .form-check-label {
+  color: #ffffff;
 }
 
 /* Footer styles */
-#light .footer, #dark .footer {
+.footer {
   font-size: calc(10px + 2vmin);
   position: fixed;
   width: 100%;
   bottom: 0;
 }
 
-#light .footer {
-  background-color: white;
-  border-top: 10px solid white;
-  border-bottom: 10px solid white;
-  color: black;
+.theme-light .footer {
+  background-color: #ffffff;
+  border-top: 10px solid #ffffff;
+  border-bottom: 10px solid #ffffff;
+  color: #000000;
 }
 
-#dark .footer {
-  background-color: black;
-  border-top: 10px solid black;
-  border-bottom: 10px solid black;
-  color: white;
+.theme-dark .footer {
+  background-color: #121212;
+  border-top: 10px solid #121212;
+  border-bottom: 10px solid #121212;
+  color: #ffffff;
+}
+
+/* Theme-specific button styles */
+.theme-light .btn-outline-theme {
+  color: #000000;
+  border-color: #000000;
+}
+
+.theme-dark .btn-outline-theme {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.theme-light .btn-outline-theme:hover {
+  color: #ffffff;
+  background-color: #000000;
+}
+
+.theme-dark .btn-outline-theme:hover {
+  color: #000000;
+  background-color: #ffffff;
 }
 
 /* Utility classes */
