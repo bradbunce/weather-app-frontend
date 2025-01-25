@@ -1,4 +1,29 @@
 /* WeatherCard theme styles */
+
+/* Override Bootstrap's default font sizes */
+.card .card-title {
+  font-size: var(--base-font-size) !important;
+}
+
+.card .btn {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Ensure text-title class overrides Bootstrap */
+.card .text-title {
+  font-size: calc(var(--base-font-size) * 1.25) !important;
+}
+
+/* Ensure text-content class overrides Bootstrap */
+.card .text-content {
+  font-size: var(--base-font-size) !important;
+}
+
+/* Ensure text-small class overrides Bootstrap */
+.card .text-small {
+  font-size: calc(var(--base-font-size) * 0.875) !important;
+}
+
 .theme-light .card {
   background-color: #ffffff;
   border: 1px solid #dee2e6;
