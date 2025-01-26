@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
 import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
@@ -15,7 +15,9 @@ import { LoadingSpinner } from './LoadingSpinner';
 const LocationGrid = React.memo(({ locations, onRemove }) => {
   const logger = useLogger();
 
-  logger.debug('Rendering LocationGrid', { locationCount: locations.length });
+  useEffect(() => {
+    logger.debug('LocationGrid rendered', { locationCount: locations.length });
+  }, [locations.length, logger]);
 
   return (
     <Row xs={1} md={2} lg={3} className="g-4">
@@ -27,26 +29,15 @@ const LocationGrid = React.memo(({ locations, onRemove }) => {
     </Row>
   );
 }, (prevProps, nextProps) => {
-  const logger = useLogger();
   // Check if re-render is needed
   const locationLengthChanged = prevProps.locations.length !== nextProps.locations.length;
   if (locationLengthChanged) {
-    logger.debug('LocationGrid needs update - location count changed', {
-      prev: prevProps.locations.length,
-      next: nextProps.locations.length
-    });
     return false;
   }
 
-  const locationsUnchanged = prevProps.locations.every((loc, i) => 
+  return prevProps.locations.every((loc, i) => 
     loc.location_id === nextProps.locations[i].location_id
   );
-
-  logger.debug('LocationGrid memo check', { 
-    shouldUpdate: !locationsUnchanged
-  });
-
-  return locationsUnchanged;
 });
 
 /**
@@ -102,7 +93,9 @@ const FormSection = React.memo(({ onAdd }) => {
     }
   }, [newLocation, onAdd, logger]);
 
-  logger.debug('Rendering FormSection');
+  useEffect(() => {
+    logger.debug('FormSection rendered');
+  }, [logger]);
 
   return (
     <Form onSubmit={handleSubmit} className="mb-4">
@@ -140,18 +133,24 @@ const FormSection = React.memo(({ onAdd }) => {
 const DebugPanel = React.memo(({ user, locations }) => {
   const logger = useLogger();
 
-  if (process.env.NODE_ENV === "production") {
-    return null;
-  }
-
-  const debugInfo = {
+  // Memoize debug info to prevent unnecessary effect triggers
+  const debugInfo = useMemo(() => ({
     userExists: !!user,
     username: user?.username,
     hasToken: !!user?.token,
     locationCount: locations.length,
-  };
+  }), [user, locations.length]);
 
-  logger.debug('Debug panel info', debugInfo);
+  // Log debug info when it changes
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      logger.debug('Debug panel info', debugInfo);
+    }
+  }, [debugInfo, logger]);
+
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
 
   return (
     <div className="mb-3 p-2 bg-light border rounded text-small">
@@ -188,23 +187,25 @@ export const Dashboard = () => {
     removeLocation(locationId);
   }, [removeLocation, logger]);
 
-  // Memoized dashboard content
-  const dashboardContent = useMemo(() => {
-    logger.debug('Computing dashboard content', {
+  // Log dashboard state changes
+  useEffect(() => {
+    logger.debug('Dashboard state updated', {
       isAuthLoading,
       isLoading,
       hasUser: !!user,
-      locationCount: locations.length
+      locationCount: locations.length,
+      hasError: !!error
     });
+  }, [isAuthLoading, isLoading, user, locations.length, error, logger]);
+
+  const dashboardContent = useMemo(() => {
     // Handle loading states
     if (isAuthLoading) {
-      logger.debug('Auth still loading');
       return null;
     }
 
     // Handle unauthenticated state
     if (!user) {
-      logger.info('User not authenticated');
       return (
         <Alert variant="warning" className="text-content">
           Please log in to view your weather dashboard.
@@ -214,10 +215,7 @@ export const Dashboard = () => {
 
     // Handle locations loading
     if (isLoading) {
-      logger.debug('Loading locations');
-      logger.debug('Rendering main dashboard content');
-    
-    return (
+      return (
         <div className="d-flex justify-content-center py-5 text-content">
           <LoadingSpinner />
         </div>
@@ -258,8 +256,7 @@ export const Dashboard = () => {
     error,
     clearError,
     memoizedRemoveLocation,
-    addLocation,
-    logger
+    addLocation
   ]);
 
   return (

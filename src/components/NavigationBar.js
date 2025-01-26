@@ -55,11 +55,14 @@ export const NavigationBar = () => {
     navigate("/", { replace: true }); // Using replace to prevent back navigation to authenticated pages
   }, [logout, navigate, logger]);
 
-  logger.debug('Rendering NavigationBar', { 
-    isAuthenticated, 
-    theme,
-    fontSize 
-  });
+  // Log render state
+  useEffect(() => {
+    logger.debug('NavigationBar state updated', { 
+      isAuthenticated, 
+      theme,
+      fontSize 
+    });
+  }, [isAuthenticated, theme, fontSize, logger]);
 
   return (
     <Navbar expand="lg" className="navbar-dark" expanded={expanded} onToggle={setExpanded}>

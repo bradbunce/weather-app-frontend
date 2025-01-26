@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Form,
   Button,
@@ -112,9 +112,19 @@ export const Login = () => {
     setResetEmail(e.target.value);
   }, [logger]);
 
+  // Log component state changes
+  useEffect(() => {
+    logger.debug('Login component state', { 
+      loading,
+      hasError: !!error,
+      hasResetError: !!resetError,
+      hasResetSuccess: !!resetSuccess,
+      showingResetModal: showResetModal
+    });
+  }, [loading, error, resetError, resetSuccess, showResetModal, logger]);
+
   // Show loading spinner while processing
   if (loading) {
-    logger.debug('Showing loading spinner');
     return (
       <Container className="d-flex justify-content-center align-items-center login-container" style={{ minHeight: "50vh" }}>
         <LoadingSpinner />
@@ -122,7 +132,6 @@ export const Login = () => {
     );
   }
 
-  logger.debug('Rendering login form');
   return (
     <Container className="login-container">
       <Row className="justify-content-md-center">
