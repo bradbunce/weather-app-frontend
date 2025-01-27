@@ -88,6 +88,12 @@ export const Login = () => {
       logger.info('Password reset email sent', { email: resetEmail });
       setResetSuccess("Password reset link sent to your email");
       setResetEmail("");
+      
+      // Navigate to home page after a short delay
+      setTimeout(() => {
+        handleCloseResetModal();
+        navigate("/", { replace: true });
+      }, 2000);
     } catch (err) {
       logger.error('Password reset failed', { 
         error: err.message,
@@ -95,7 +101,7 @@ export const Login = () => {
       });
       setResetError(err.response?.data?.error || err.message || "Failed to send reset link");
     }
-  }, [resetEmail, resetPassword, logger]);
+  }, [resetEmail, resetPassword, logger, navigate, handleCloseResetModal]);
 
   // Handle modal close
   const handleCloseResetModal = useCallback(() => {
