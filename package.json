@@ -1,7 +1,10 @@
 {
   "name": "weather-app-frontend",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
+  "engines": {
+    "node": ">=18.2.0"
+  },
   "dependencies": {
     "@bradbunce/launchdarkly-react-logger": "^1.0.8",
     "axios": "^1.7.9",
