@@ -96,7 +96,7 @@ export const Login = () => {
         setResetSuccess("");
         setResetEmail("");
         navigate("/", { replace: true });
-      }, 2000);
+      }, 3000);
     } catch (err) {
       logger.error('Password reset failed', { 
         error: err.message,

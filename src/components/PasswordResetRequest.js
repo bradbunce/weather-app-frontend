@@ -34,7 +34,7 @@ export const PasswordResetRequest = () => {
       // Optional: Redirect after a few seconds or allow manual navigation
       setTimeout(() => {
         navigate("/login");
-      }, 5000);
+      }, 3000);
     } catch (err) {
       setError(err.message || "Failed to send password reset link");
     } finally {

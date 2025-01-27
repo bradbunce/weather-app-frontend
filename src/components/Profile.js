@@ -161,7 +161,7 @@ const Profile = () => {
         // Redirect after short delay
         setTimeout(() => {
           navigate("/dashboard");
-        }, 2000);
+        }, 3000);
       } else {
         logger.debug("No profile changes detected");
         setMessage("No changes were made to update");
