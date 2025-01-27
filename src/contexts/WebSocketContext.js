@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useEffect } from "react";
 import { useAuth } from "./AuthContext";
-import { useLogger } from "../utils/logger";
+import { useLogger } from "@bradbunce/launchdarkly-react-logger";
 
 const WebSocketContext = createContext(null);
 

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from './AuthContext';
-import { useLogger } from '../utils/logger';
+import { useLogger } from '@bradbunce/launchdarkly-react-logger';
 import { useWebSocket } from './WebSocketContext';
 
 const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;

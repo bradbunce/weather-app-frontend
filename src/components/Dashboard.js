@@ -5,7 +5,7 @@ import { WeatherCard } from "./WeatherCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useLocations } from "../contexts/LocationsContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { useLogger } from "../utils/logger";
+import { useLogger } from "@bradbunce/launchdarkly-react-logger";
 import { LoadingSpinner } from './LoadingSpinner';
 
 /**

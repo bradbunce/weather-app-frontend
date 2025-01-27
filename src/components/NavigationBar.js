@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useFontSize } from "../contexts/FontSizeContext";
-import { useLogger } from "../utils/logger";
+import { useLogger } from "@bradbunce/launchdarkly-react-logger";
 import { Sun, Moon, Minus, Plus } from "lucide-react";
 
 /**

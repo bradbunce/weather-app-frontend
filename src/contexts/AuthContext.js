@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { withLDConsumer } from "launchdarkly-react-client-sdk";
 import axios from "axios";
-import { useLogger } from "../utils/logger";
+import { useLogger } from "@bradbunce/launchdarkly-react-logger";
 import { createLDContexts } from "../config/launchDarkly";
 
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;

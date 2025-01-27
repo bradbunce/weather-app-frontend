@@ -11,7 +11,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import axios from 'axios';
-import { useLogger } from "../utils/logger";
+import { useLogger } from "@bradbunce/launchdarkly-react-logger";
 
 // Constants
 const AUTH_API_URL = process.env.REACT_APP_AUTH_API;

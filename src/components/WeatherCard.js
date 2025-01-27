@@ -3,7 +3,7 @@ import { Card, Button, Spinner } from "react-bootstrap";
 import { useAuth } from "../contexts/AuthContext";
 import { useWebSocket } from "../contexts/WebSocketContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { useLogger } from "../utils/logger";
+import { useLogger } from "@bradbunce/launchdarkly-react-logger";
 
 export const WeatherCard = React.memo(
   ({ location, onRemove }) => {

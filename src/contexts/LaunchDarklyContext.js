@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import { useLogger } from "../utils/logger";
+import { useLogger } from "@bradbunce/launchdarkly-react-logger";
 import { asyncWithLDProvider } from "launchdarkly-react-client-sdk";
 import { createLDContexts } from "../config/launchDarkly";
 
