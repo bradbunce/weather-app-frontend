@@ -89,9 +89,12 @@ export const Login = () => {
       setResetSuccess("Password reset link sent to your email");
       setResetEmail("");
       
-      // Navigate to home page after a short delay
+      // Close modal and navigate to home page after a short delay
       setTimeout(() => {
-        handleCloseResetModal();
+        setShowResetModal(false);
+        setResetError("");
+        setResetSuccess("");
+        setResetEmail("");
         navigate("/", { replace: true });
       }, 2000);
     } catch (err) {
@@ -101,7 +104,7 @@ export const Login = () => {
       });
       setResetError(err.response?.data?.error || err.message || "Failed to send reset link");
     }
-  }, [resetEmail, resetPassword, logger, navigate, handleCloseResetModal]);
+  }, [resetEmail, resetPassword, logger, navigate, setShowResetModal, setResetError, setResetSuccess, setResetEmail]);
 
   // Handle modal close
   const handleCloseResetModal = useCallback(() => {
