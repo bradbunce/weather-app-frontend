@@ -115,9 +115,9 @@ export const PasswordResetConfirm = () => {
       await confirmPasswordReset(resetToken, newPassword);
       
       logger.info('Password reset successful');
-      setSuccess("Your password has been successfully reset! You'll be redirected to the login page.");
+      setSuccess("Your password has been successfully reset! You'll be redirected to the home page.");
       setTimeout(() => {
-        navigate("/login");
+        navigate("/");
       }, 3000);
     } catch (err) {
       logger.error('Password reset failed', { error: err.message });

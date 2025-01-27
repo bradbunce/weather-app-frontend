@@ -29,7 +29,7 @@ export const PasswordResetRequest = () => {
 
       await resetPassword(email);
       
-      setSuccess("Password reset link has been sent to your email. Please check your inbox. You will be redirected to the login page in 5 seconds.");
+      setSuccess("Password reset link has been sent to your email. Please check your inbox. You will be redirected to the login page in 3 seconds.");
       
       // Optional: Redirect after a few seconds or allow manual navigation
       setTimeout(() => {
