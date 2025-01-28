@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useLocations } from "../contexts/LocationsContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useLogger } from "@bradbunce/launchdarkly-react-logger";
+import { useWebSocket } from "../contexts/WebSocketContext";
 import { LoadingSpinner } from './LoadingSpinner';
 
 /**
@@ -94,6 +95,8 @@ const FormSection = React.memo(({ onAdd }) => {
     }
   }, [newLocation, logger]);
 
+  const webSocket = useWebSocket();
+
   const handleLocationSelect = useCallback(async (locationData) => {
     try {
       logger.debug('Adding selected location', locationData);
@@ -103,6 +106,14 @@ const FormSection = React.memo(({ onAdd }) => {
         latitude: locationData.latitude,
         longitude: locationData.longitude
       });
+      
+      // Get the newly added location's ID from the updated locations list
+      const token = localStorage.getItem("authToken");
+      if (token && webSocket) {
+        // Request weather data for all locations to ensure we get data for the new one
+        webSocket.subscribeAllLocations(token);
+      }
+
       setNewLocation("");
       setSearchResults([]);
       setSearchError("");
@@ -113,7 +124,7 @@ const FormSection = React.memo(({ onAdd }) => {
       });
       setSearchError("Error adding location. Please try again.");
     }
-  }, [onAdd, logger]);
+  }, [onAdd, logger, webSocket]);
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
