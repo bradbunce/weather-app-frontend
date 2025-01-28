@@ -6,7 +6,7 @@
     "node": ">=18.2.0"
   },
   "dependencies": {
-    "@bradbunce/launchdarkly-react-logger": "^1.0.8",
+    "@bradbunce/launchdarkly-react-logger": "^1.0.10",
     "axios": "^1.7.9",
     "bootstrap": "^5.3.3",
     "cra-template": "1.2.0",
