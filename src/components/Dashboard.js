@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
+import { Container, Row, Col, Button, Form, Alert, ListGroup } from "react-bootstrap";
 import axios from "axios";
 import { WeatherCard } from "./WeatherCard";
 import { useAuth } from "../contexts/AuthContext";
@@ -46,83 +46,136 @@ const LocationGrid = React.memo(({ locations, onRemove }) => {
  */
 const FormSection = React.memo(({ onAdd }) => {
   const [newLocation, setNewLocation] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const logger = useLogger();
   
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
+  const handleSearch = useCallback(async () => {
     if (!newLocation.trim()) return;
     
-    logger.debug('Submitting new location', { location: newLocation });
+    setIsSearching(true);
+    setSearchError("");
+    logger.debug('Searching for location', { location: newLocation });
     
     try {
-      // Geocode the location
-      logger.debug('Geocoding location');
       const geocodingResponse = await axios.get(
         `https://nominatim.openstreetmap.org/search`,
         {
           params: {
             q: newLocation.trim(),
             format: "json",
-            limit: 1,
+            limit: 5, // Get up to 5 matches
           },
         }
       );
 
-      const locationData = geocodingResponse.data[0];
-      if (!locationData) {
-        logger.warn('Location not found', { searchTerm: newLocation });
-        throw new Error("Could not find location details");
+      if (geocodingResponse.data.length === 0) {
+        setSearchError("No locations found. Please try a different search term.");
+        setSearchResults([]);
+      } else {
+        setSearchResults(geocodingResponse.data.map(location => ({
+          display_name: location.display_name,
+          city_name: location.display_name.split(",")[0].trim(),
+          country_code: location.address?.country_code?.toUpperCase() || "US",
+          latitude: parseFloat(location.lat),
+          longitude: parseFloat(location.lon),
+        })));
       }
-
-      // Format location data
-      const newLocationData = {
-        city_name: locationData.display_name.split(",")[0].trim(),
-        country_code: locationData.address?.country_code?.toUpperCase() || "US",
-        latitude: parseFloat(locationData.lat),
-        longitude: parseFloat(locationData.lon),
-      };
-
-      logger.debug('Adding new location', newLocationData);
-      await onAdd(newLocationData);
-      setNewLocation("");
     } catch (err) {
-      logger.error('Error adding location', { 
+      logger.error('Error searching location', { 
         error: err.message,
         searchTerm: newLocation 
       });
+      setSearchError("Error searching for location. Please try again.");
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
     }
-  }, [newLocation, onAdd, logger]);
+  }, [newLocation, logger]);
+
+  const handleLocationSelect = useCallback(async (locationData) => {
+    try {
+      logger.debug('Adding selected location', locationData);
+      await onAdd({
+        city_name: locationData.city_name,
+        country_code: locationData.country_code,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude
+      });
+      setNewLocation("");
+      setSearchResults([]);
+      setSearchError("");
+    } catch (err) {
+      logger.error('Error adding location', { 
+        error: err.message,
+        location: locationData 
+      });
+      setSearchError("Error adding location. Please try again.");
+    }
+  }, [onAdd, logger]);
+
+  const handleSubmit = useCallback((e) => {
+    e.preventDefault();
+    handleSearch();
+  }, [handleSearch]);
 
   useEffect(() => {
     logger.debug('FormSection rendered');
   }, [logger]);
 
   return (
-    <Form onSubmit={handleSubmit} className="mb-4">
-      <Row className="align-items-center g-2">
-        <Col xs={12} sm={8} md={6}>
-          <Form.Group>
-            <Form.Control
-              type="text"
-              placeholder="Enter city name"
-              value={newLocation}
-              onChange={(e) => setNewLocation(e.target.value)}
+    <div className="mb-4">
+      <Form onSubmit={handleSubmit}>
+        <Row className="align-items-center g-2 mb-3">
+          <Col xs={12} sm={8} md={6}>
+            <Form.Group>
+              <Form.Control
+                type="text"
+                placeholder="Enter city name, state, or country"
+                value={newLocation}
+                onChange={(e) => setNewLocation(e.target.value)}
+                className="text-content w-100"
+              />
+            </Form.Group>
+          </Col>
+          <Col xs={12} sm={4} md={2}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!newLocation.trim() || isSearching}
               className="text-content w-100"
-            />
-          </Form.Group>
-        </Col>
-        <Col xs={12} sm={4} md={2}>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={!newLocation.trim()}
-            className="text-content w-100"
-          >
-            Add Location
-          </Button>
-        </Col>
-      </Row>
-    </Form>
+            >
+              {isSearching ? 'Searching...' : 'Search'}
+            </Button>
+          </Col>
+        </Row>
+      </Form>
+
+      {searchError && (
+        <Alert variant="danger" className="mb-3">
+          {searchError}
+        </Alert>
+      )}
+
+      {searchResults.length > 0 && (
+        <ListGroup className="mb-3">
+          {searchResults.map((result, index) => (
+            <ListGroup.Item
+              key={index}
+              action
+              onClick={() => handleLocationSelect(result)}
+              className="text-content"
+            >
+              <div className="d-flex flex-column">
+                <strong>{result.city_name}</strong>
+                <small className="text-muted">{result.display_name}</small>
+              </div>
+            </ListGroup.Item>
+          ))}
+        </ListGroup>
+      )}
+    </div>
   );
 });
 
