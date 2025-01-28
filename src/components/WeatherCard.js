@@ -37,7 +37,8 @@ export const WeatherCard = React.memo(
             ...prev,
             data: message.data,
             loading: false,
-            error: "",
+            // Only clear connection-related errors, preserve other errors
+            error: prev.error === "Lost connection to weather updates" ? "" : prev.error,
             isConnected: true,
           }));
         } else {
@@ -62,7 +63,7 @@ export const WeatherCard = React.memo(
 
         setWeatherState((prev) => ({
           ...prev,
-          error: errorMessage,
+          error: "Lost connection to weather updates",
           loading: false,
           isConnected: false,
         }));
