@@ -4,7 +4,7 @@ import { useLocations } from '../contexts/LocationsContext';
 import { useLogger } from '@bradbunce/launchdarkly-react-logger';
 
 export const LocationsLoadTester = () => {
-  const { fetchLocations } = useLocations();
+  const { fetchLocations, locations } = useLocations();
   const logger = useLogger();
 
   // Test configuration
@@ -40,16 +40,16 @@ export const LocationsLoadTester = () => {
   const executeQuery = useCallback(async () => {
     const startTime = performance.now();
     try {
-      const response = await fetchLocations();
+      await fetchLocations();
       const endTime = performance.now();
       const responseTime = endTime - startTime;
       
-      // Get location count from response
-      const locationCount = Array.isArray(response) ? response.length : 0;
+      // Get location count from context
+      const locationCount = locations.length;
 
       updateMetrics({
         totalQueries: metricsRef.current.totalQueries + 1,
-        totalLocations: metricsRef.current.totalLocations + locationCount,
+        totalLocations: locationCount, // Just show the current number of locations
         averageResponseTime: (
           (metricsRef.current.averageResponseTime * metricsRef.current.totalQueries + responseTime) / 
           (metricsRef.current.totalQueries + 1)
@@ -75,7 +75,7 @@ export const LocationsLoadTester = () => {
         totalQueries: metricsRef.current.totalQueries + 1
       });
     }
-  }, [fetchLocations, updateMetrics, logger]);
+  }, [fetchLocations, locations, updateMetrics, logger]);
 
   const startTest = useCallback(() => {
     if (isRunning) return;
@@ -168,7 +168,7 @@ export const LocationsLoadTester = () => {
           </Col>
           <Col xs={12} md={4}>
             <div className="d-flex justify-content-between align-items-center border rounded p-2">
-              <span>Total Locations:</span>
+              <span>Current Locations:</span>
               <Badge bg="info">{metrics.totalLocations}</Badge>
             </div>
           </Col>
