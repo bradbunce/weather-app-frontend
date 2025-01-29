@@ -97,22 +97,47 @@ const FormSection = React.memo(({ onAdd }) => {
 
   const webSocket = useWebSocket();
 
+  const { locations, isLoading } = useLocations();
+  const [pendingLocation, setPendingLocation] = useState(null);
+
+  // Effect to handle requesting weather data after location is added
+  useEffect(() => {
+    if (!isLoading && pendingLocation && locations.length > 0) {
+      // Find the newly added location by matching coordinates
+      const newLocation = locations.find(
+        loc => 
+          Math.abs(loc.latitude - pendingLocation.latitude) < 0.0001 && 
+          Math.abs(loc.longitude - pendingLocation.longitude) < 0.0001
+      );
+
+      if (newLocation?.location_id && webSocket) {
+        logger.debug('Requesting weather data for new location', { 
+          locationId: newLocation.location_id 
+        });
+        
+        // Request weather data for the new location
+        webSocket.refreshWeather([newLocation.location_id]);
+        
+        // Clear the pending location
+        setPendingLocation(null);
+      }
+    }
+  }, [isLoading, locations, pendingLocation, webSocket, logger]);
+
   const handleLocationSelect = useCallback(async (locationData) => {
     try {
       logger.debug('Adding selected location', locationData);
+      
+      // Store the location data we're adding
+      setPendingLocation(locationData);
+      
+      // Add the location - this will trigger fetchLocations internally
       await onAdd({
         city_name: locationData.city_name,
         country_code: locationData.country_code,
         latitude: locationData.latitude,
         longitude: locationData.longitude
       });
-      
-      // Get the newly added location's ID from the updated locations list
-      const token = localStorage.getItem("authToken");
-      if (token && webSocket) {
-        // Request weather data for all locations to ensure we get data for the new one
-        webSocket.subscribeAllLocations(token);
-      }
 
       setNewLocation("");
       setSearchResults([]);
@@ -123,8 +148,9 @@ const FormSection = React.memo(({ onAdd }) => {
         location: locationData 
       });
       setSearchError("Error adding location. Please try again.");
+      setPendingLocation(null);
     }
-  }, [onAdd, logger, webSocket]);
+  }, [onAdd, logger]);
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
