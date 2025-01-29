@@ -73,17 +73,33 @@ export const LocationsProvider = ({ children }) => {
   const addLocation = useCallback(async (newLocationData) => {
     try {
       setError(null);
-      await axios.post(
+      const response = await axios.post(
         `${LOCATIONS_API_URL}/locations`,
         newLocationData
       );
+      
+      // Get the new location data from response
+      const newLocation = response.data;
+      
+      // Update locations list
       await fetchLocations();
+      
+      // Set up WebSocket handler for the new location
+      if (webSocket && newLocation?.location_id) {
+        logger.debug("Setting up WebSocket for new location", { 
+          locationId: newLocation.location_id 
+        });
+        
+        // Request weather data for the new location
+        webSocket.refreshWeather([newLocation.location_id]);
+      }
+      
       return true;
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add location");
       throw err;
     }
-  }, [fetchLocations, setError]);
+  }, [fetchLocations, setError, webSocket, logger]);
 
   const removeLocation = useCallback(async (locationId) => {
     try {
