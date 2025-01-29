@@ -52,7 +52,5 @@ export const evaluateApplicationFlag = (ldClient, flagKey) => {
   return ldClient.variation(flagKey, applicationContext, false);
 };
 
-export const FeatureFlags = {
-  FRONTEND_CONSOLE_LOGGING: "frontend-console-logging",
-  // Add other feature flag keys here
-};
+// Feature flags are defined via environment variables
+// Example: REACT_APP_LD_CONSOLE_LOG_FLAG_KEY for console logging

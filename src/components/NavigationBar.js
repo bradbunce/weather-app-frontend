@@ -7,6 +7,7 @@ import { useFontSize } from "../contexts/FontSizeContext";
 import { useLogger } from "@bradbunce/launchdarkly-react-logger";
 import { Sun, Moon, Minus, Plus, Activity } from "lucide-react";
 import { useLoadTester } from "../contexts/LoadTesterContext";
+import { useLDClient } from "launchdarkly-react-client-sdk";
 
 /**
  * NavigationBar component
@@ -18,6 +19,8 @@ export const NavigationBar = () => {
   const { theme, toggleTheme } = useTheme();
   const { fontSize, increaseFontSize, decreaseFontSize } = useFontSize();
   const { isRunning, metrics } = useLoadTester();
+  const ldClient = useLDClient();
+  const isLoadTestingEnabled = ldClient.variation(process.env.REACT_APP_LD_LOAD_TEST_FLAG_KEY, false);
   const navigate = useNavigate();
   const logger = useLogger();
   const [expanded, setExpanded] = useState(false);
@@ -97,22 +100,24 @@ export const NavigationBar = () => {
                 <Nav.Link as={Link} to="/profile" onClick={handleNavClick}>
                   Profile
                 </Nav.Link>
-                <div className="d-flex align-items-center">
-                  <Nav.Link as={Link} to="/load-tester" onClick={handleNavClick}>
-                    Load Tester
-                  </Nav.Link>
-                  {isRunning && (
-                    <Activity 
-                      className="text-warning" 
-                      style={{ 
-                        width: 'calc(var(--base-font-size) * 1.125)', 
-                        height: 'calc(var(--base-font-size) * 1.125)',
-                        marginLeft: '0.25rem'
-                      }}
-                      title={`Load test running - ${metrics.totalQueries} queries`}
-                    />
-                  )}
-                </div>
+                {isLoadTestingEnabled && (
+                  <div className="d-flex align-items-center">
+                    <Nav.Link as={Link} to="/load-tester" onClick={handleNavClick}>
+                      Load Tester
+                    </Nav.Link>
+                    {isRunning && (
+                      <Activity 
+                        className="text-warning" 
+                        style={{ 
+                          width: 'calc(var(--base-font-size) * 1.125)', 
+                          height: 'calc(var(--base-font-size) * 1.125)',
+                          marginLeft: '0.25rem'
+                        }}
+                        title={`Load test running - ${metrics.totalQueries} queries`}
+                      />
+                    )}
+                  </div>
+                )}
                 <Button 
                   variant="link" 
                   as={Nav.Link} 
