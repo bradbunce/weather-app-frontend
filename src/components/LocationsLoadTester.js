@@ -9,7 +9,8 @@ export const LocationsLoadTester = () => {
     queriesPerMinute, 
     setQueriesPerMinute, 
     startTest, 
-    stopTest 
+    stopTest,
+    resetMetrics 
   } = useLoadTester();
 
   const formatDuration = useCallback((startTime) => {
@@ -45,13 +46,23 @@ export const LocationsLoadTester = () => {
               />
             </Form.Group>
           </Col>
-          <Col xs={12} md={6} className="mt-3 mt-md-0">
+          <Col xs={12} md={3} className="mt-3 mt-md-0">
             <Button
               variant={isRunning ? 'danger' : 'primary'}
               onClick={isRunning ? stopTest : startTest}
               className="w-100"
             >
               {isRunning ? 'Stop Test' : 'Start Test'}
+            </Button>
+          </Col>
+          <Col xs={12} md={3} className="mt-3 mt-md-0">
+            <Button
+              variant="secondary"
+              onClick={resetMetrics}
+              disabled={isRunning}
+              className="w-100"
+            >
+              Reset Metrics
             </Button>
           </Col>
         </Row>

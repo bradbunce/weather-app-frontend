@@ -97,9 +97,22 @@ export const NavigationBar = () => {
                 <Nav.Link as={Link} to="/profile" onClick={handleNavClick}>
                   Profile
                 </Nav.Link>
-                <Nav.Link as={Link} to="/load-tester" onClick={handleNavClick}>
-                  Load Tester
-                </Nav.Link>
+                <div className="d-flex align-items-center">
+                  <Nav.Link as={Link} to="/load-tester" onClick={handleNavClick}>
+                    Load Tester
+                  </Nav.Link>
+                  {isRunning && (
+                    <Activity 
+                      className="text-warning" 
+                      style={{ 
+                        width: 'calc(var(--base-font-size) * 1.125)', 
+                        height: 'calc(var(--base-font-size) * 1.125)',
+                        marginLeft: '0.25rem'
+                      }}
+                      title={`Load test running - ${metrics.totalQueries} queries`}
+                    />
+                  )}
+                </div>
                 <Button 
                   variant="link" 
                   as={Nav.Link} 
@@ -130,22 +143,6 @@ export const NavigationBar = () => {
                 <Sun style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} />
               }
             </Button>
-
-            {/* Load test indicator */}
-            {isAuthenticated && (
-              <div className="d-flex align-items-center me-2">
-                {isRunning && (
-                  <Activity 
-                    className="text-warning" 
-                    style={{ 
-                      width: 'calc(var(--base-font-size) * 1.125)', 
-                      height: 'calc(var(--base-font-size) * 1.125)' 
-                    }}
-                    title={`Load test running - ${metrics.totalQueries} queries`}
-                  />
-                )}
-              </div>
-            )}
 
             {/* Font size controls */}
             <ButtonGroup className="font-size-controls">

@@ -131,13 +131,29 @@ export const LoadTesterProvider = ({ children }) => {
     };
   }, []);
 
+  const resetMetrics = useCallback(() => {
+    setMetrics({
+      totalQueries: 0,
+      totalLocations: 0,
+      averageResponseTime: 0,
+      minResponseTime: Infinity,
+      maxResponseTime: 0,
+      successCount: 0,
+      errorCount: 0,
+      startTime: null,
+      lastQueryTime: null
+    });
+    logger.info('Load test metrics reset');
+  }, [logger]);
+
   const value = {
     isRunning,
     metrics,
     queriesPerMinute,
     setQueriesPerMinute,
     startTest,
-    stopTest
+    stopTest,
+    resetMetrics
   };
 
   return (
