@@ -28,6 +28,7 @@ import { LDProvider } from "./contexts/LaunchDarklyContext";
 import { WebSocketProvider } from "./contexts/WebSocketContext";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { FontSizeProvider } from "./contexts/FontSizeContext";
+import { LoadTesterProvider } from "./contexts/LoadTesterContext";
 
 /**
  * Route wrapper for protected routes that require authentication
@@ -175,7 +176,9 @@ export const App = () => {
             <AuthProvider onReady={() => setAuthReady(true)}>
               <WebSocketProvider>
                 <LocationsProvider>
-                  <AppContent ldReady={ldReady} authReady={authReady} />
+                  <LoadTesterProvider>
+                    <AppContent ldReady={ldReady} authReady={authReady} />
+                  </LoadTesterProvider>
                 </LocationsProvider>
               </WebSocketProvider>
             </AuthProvider>

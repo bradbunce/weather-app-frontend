@@ -5,7 +5,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useFontSize } from "../contexts/FontSizeContext";
 import { useLogger } from "@bradbunce/launchdarkly-react-logger";
-import { Sun, Moon, Minus, Plus } from "lucide-react";
+import { Sun, Moon, Minus, Plus, Activity } from "lucide-react";
+import { useLoadTester } from "../contexts/LoadTesterContext";
 
 /**
  * NavigationBar component
@@ -16,6 +17,7 @@ export const NavigationBar = () => {
   const { isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { fontSize, increaseFontSize, decreaseFontSize } = useFontSize();
+  const { isRunning, metrics } = useLoadTester();
   const navigate = useNavigate();
   const logger = useLogger();
   const [expanded, setExpanded] = useState(false);
@@ -128,6 +130,22 @@ export const NavigationBar = () => {
                 <Sun style={{ width: 'calc(var(--base-font-size) * 1.125)', height: 'calc(var(--base-font-size) * 1.125)' }} />
               }
             </Button>
+
+            {/* Load test indicator */}
+            {isAuthenticated && (
+              <div className="d-flex align-items-center me-2">
+                {isRunning && (
+                  <Activity 
+                    className="text-warning" 
+                    style={{ 
+                      width: 'calc(var(--base-font-size) * 1.125)', 
+                      height: 'calc(var(--base-font-size) * 1.125)' 
+                    }}
+                    title={`Load test running - ${metrics.totalQueries} queries`}
+                  />
+                )}
+              </div>
+            )}
 
             {/* Font size controls */}
             <ButtonGroup className="font-size-controls">

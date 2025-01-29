@@ -1,119 +1,16 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useCallback } from 'react';
 import { Card, Form, Button, Row, Col, Badge } from 'react-bootstrap';
-import { useLocations } from '../contexts/LocationsContext';
-import { useLogger } from '@bradbunce/launchdarkly-react-logger';
+import { useLoadTester } from '../contexts/LoadTesterContext';
 
 export const LocationsLoadTester = () => {
-  const { fetchLocations, locations } = useLocations();
-  const logger = useLogger();
-
-  // Test configuration
-  const [queriesPerMinute, setQueriesPerMinute] = useState(30);
-  const [isRunning, setIsRunning] = useState(false);
-
-  // Metrics
-  const [metrics, setMetrics] = useState({
-    totalQueries: 0,
-    totalLocations: 0,
-    averageResponseTime: 0,
-    minResponseTime: Infinity,
-    maxResponseTime: 0,
-    successCount: 0,
-    errorCount: 0,
-    startTime: null,
-    lastQueryTime: null
-  });
-
-  // Refs for interval management
-  const intervalRef = useRef(null);
-  const metricsRef = useRef(metrics);
-  metricsRef.current = metrics;
-
-  const updateMetrics = useCallback((newData) => {
-    setMetrics(prev => ({
-      ...prev,
-      ...newData,
-      lastQueryTime: new Date()
-    }));
-  }, []);
-
-  const executeQuery = useCallback(async () => {
-    const startTime = performance.now();
-    try {
-      await fetchLocations();
-      const endTime = performance.now();
-      const responseTime = endTime - startTime;
-      
-      // Get location count from context
-      const locationCount = locations.length;
-
-      updateMetrics({
-        totalQueries: metricsRef.current.totalQueries + 1,
-        totalLocations: locationCount, // Just show the current number of locations
-        averageResponseTime: (
-          (metricsRef.current.averageResponseTime * metricsRef.current.totalQueries + responseTime) / 
-          (metricsRef.current.totalQueries + 1)
-        ),
-        minResponseTime: Math.min(metricsRef.current.minResponseTime, responseTime),
-        maxResponseTime: Math.max(metricsRef.current.maxResponseTime, responseTime),
-        successCount: metricsRef.current.successCount + 1
-      });
-
-      logger.debug('Load test query completed', {
-        responseTime,
-        locationCount,
-        totalQueries: metricsRef.current.totalQueries + 1
-      });
-    } catch (error) {
-      updateMetrics({
-        totalQueries: metricsRef.current.totalQueries + 1,
-        errorCount: metricsRef.current.errorCount + 1
-      });
-
-      logger.error('Load test query failed', {
-        error: error.message,
-        totalQueries: metricsRef.current.totalQueries + 1
-      });
-    }
-  }, [fetchLocations, locations, updateMetrics, logger]);
-
-  const startTest = useCallback(() => {
-    if (isRunning) return;
-
-    const interval = (60 * 1000) / queriesPerMinute; // Convert QPM to milliseconds
-    setIsRunning(true);
-    setMetrics(prev => ({
-      ...prev,
-      startTime: new Date(),
-      minResponseTime: Infinity,
-      maxResponseTime: 0
-    }));
-
-    intervalRef.current = setInterval(executeQuery, interval);
-    executeQuery(); // Execute first query immediately
-
-    logger.info('Load test started', { queriesPerMinute, interval });
-  }, [queriesPerMinute, isRunning, executeQuery, logger]);
-
-  const stopTest = useCallback(() => {
-    if (!isRunning) return;
-
-    clearInterval(intervalRef.current);
-    setIsRunning(false);
-    logger.info('Load test stopped', { 
-      totalQueries: metrics.totalQueries,
-      successRate: ((metrics.successCount / metrics.totalQueries) * 100).toFixed(2) + '%'
-    });
-  }, [isRunning, metrics, logger]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
+  const { 
+    isRunning, 
+    metrics, 
+    queriesPerMinute, 
+    setQueriesPerMinute, 
+    startTest, 
+    stopTest 
+  } = useLoadTester();
 
   const formatDuration = useCallback((startTime) => {
     if (!startTime) return '0:00';
