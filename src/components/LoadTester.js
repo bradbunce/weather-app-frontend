@@ -1,5 +1,6 @@
 import React from 'react';
-import { Container, Alert } from 'react-bootstrap';
+import { Container } from 'react-bootstrap';
+import { Navigate } from 'react-router-dom';
 import { LocationsLoadTester } from './LocationsLoadTester';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLDClient } from 'launchdarkly-react-client-sdk';
@@ -10,13 +11,7 @@ export const LoadTester = () => {
   const isLoadTestingEnabled = ldClient.variation(process.env.REACT_APP_LD_LOAD_TEST_FLAG_KEY, false);
 
   if (!isLoadTestingEnabled) {
-    return (
-      <Container className={`theme-${theme}`}>
-        <Alert variant="warning">
-          You do not have access to the load testing tools.
-        </Alert>
-      </Container>
-    );
+    return <Navigate to="/" replace />;
   }
 
   return (
