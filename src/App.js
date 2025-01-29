@@ -19,6 +19,7 @@ import { Dashboard } from "./components/Dashboard";
 import Profile from "./components/Profile";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { PasswordResetConfirm } from "./components/PasswordResetConfirm";
+import { LoadTester } from "./components/LoadTester";
 
 // Context Providers and Hooks
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -138,6 +139,14 @@ const AppContent = ({ ldReady, authReady }) => {
               element={
                 <PrivateRoute>
                   <Profile />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/load-tester"
+              element={
+                <PrivateRoute>
+                  <LoadTester />
                 </PrivateRoute>
               }
             />

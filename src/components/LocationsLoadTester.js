@@ -1,0 +1,229 @@
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { Card, Form, Button, Row, Col, Badge } from 'react-bootstrap';
+import { useLocations } from '../contexts/LocationsContext';
+import { useLogger } from '@bradbunce/launchdarkly-react-logger';
+
+export const LocationsLoadTester = () => {
+  const { fetchLocations } = useLocations();
+  const logger = useLogger();
+
+  // Test configuration
+  const [queriesPerMinute, setQueriesPerMinute] = useState(30);
+  const [isRunning, setIsRunning] = useState(false);
+
+  // Metrics
+  const [metrics, setMetrics] = useState({
+    totalQueries: 0,
+    totalLocations: 0,
+    averageResponseTime: 0,
+    minResponseTime: Infinity,
+    maxResponseTime: 0,
+    successCount: 0,
+    errorCount: 0,
+    startTime: null,
+    lastQueryTime: null
+  });
+
+  // Refs for interval management
+  const intervalRef = useRef(null);
+  const metricsRef = useRef(metrics);
+  metricsRef.current = metrics;
+
+  const updateMetrics = useCallback((newData) => {
+    setMetrics(prev => ({
+      ...prev,
+      ...newData,
+      lastQueryTime: new Date()
+    }));
+  }, []);
+
+  const executeQuery = useCallback(async () => {
+    const startTime = performance.now();
+    try {
+      const response = await fetchLocations();
+      const endTime = performance.now();
+      const responseTime = endTime - startTime;
+      
+      // Get location count from response
+      const locationCount = Array.isArray(response) ? response.length : 0;
+
+      updateMetrics({
+        totalQueries: metricsRef.current.totalQueries + 1,
+        totalLocations: metricsRef.current.totalLocations + locationCount,
+        averageResponseTime: (
+          (metricsRef.current.averageResponseTime * metricsRef.current.totalQueries + responseTime) / 
+          (metricsRef.current.totalQueries + 1)
+        ),
+        minResponseTime: Math.min(metricsRef.current.minResponseTime, responseTime),
+        maxResponseTime: Math.max(metricsRef.current.maxResponseTime, responseTime),
+        successCount: metricsRef.current.successCount + 1
+      });
+
+      logger.debug('Load test query completed', {
+        responseTime,
+        locationCount,
+        totalQueries: metricsRef.current.totalQueries + 1
+      });
+    } catch (error) {
+      updateMetrics({
+        totalQueries: metricsRef.current.totalQueries + 1,
+        errorCount: metricsRef.current.errorCount + 1
+      });
+
+      logger.error('Load test query failed', {
+        error: error.message,
+        totalQueries: metricsRef.current.totalQueries + 1
+      });
+    }
+  }, [fetchLocations, updateMetrics, logger]);
+
+  const startTest = useCallback(() => {
+    if (isRunning) return;
+
+    const interval = (60 * 1000) / queriesPerMinute; // Convert QPM to milliseconds
+    setIsRunning(true);
+    setMetrics(prev => ({
+      ...prev,
+      startTime: new Date(),
+      minResponseTime: Infinity,
+      maxResponseTime: 0
+    }));
+
+    intervalRef.current = setInterval(executeQuery, interval);
+    executeQuery(); // Execute first query immediately
+
+    logger.info('Load test started', { queriesPerMinute, interval });
+  }, [queriesPerMinute, isRunning, executeQuery, logger]);
+
+  const stopTest = useCallback(() => {
+    if (!isRunning) return;
+
+    clearInterval(intervalRef.current);
+    setIsRunning(false);
+    logger.info('Load test stopped', { 
+      totalQueries: metrics.totalQueries,
+      successRate: ((metrics.successCount / metrics.totalQueries) * 100).toFixed(2) + '%'
+    });
+  }, [isRunning, metrics, logger]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  const formatDuration = useCallback((startTime) => {
+    if (!startTime) return '0:00';
+    const diff = Math.floor((new Date() - startTime) / 1000);
+    const minutes = Math.floor(diff / 60);
+    const seconds = diff % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }, []);
+
+  const formatTime = useCallback((ms) => {
+    if (!isFinite(ms)) return '-';
+    return `${ms.toFixed(2)}ms`;
+  }, []);
+
+  return (
+    <Card className="mb-4">
+      <Card.Header>
+        <h5 className="mb-0">Locations Load Tester</h5>
+      </Card.Header>
+      <Card.Body>
+        <Row className="align-items-center mb-3">
+          <Col xs={12} md={6}>
+            <Form.Group>
+              <Form.Label>Queries per Minute</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                max="1000"
+                value={queriesPerMinute}
+                onChange={(e) => setQueriesPerMinute(Number(e.target.value))}
+                disabled={isRunning}
+              />
+            </Form.Group>
+          </Col>
+          <Col xs={12} md={6} className="mt-3 mt-md-0">
+            <Button
+              variant={isRunning ? 'danger' : 'primary'}
+              onClick={isRunning ? stopTest : startTest}
+              className="w-100"
+            >
+              {isRunning ? 'Stop Test' : 'Start Test'}
+            </Button>
+          </Col>
+        </Row>
+
+        <Row className="g-3">
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Total Queries:</span>
+              <Badge bg="primary">{metrics.totalQueries}</Badge>
+            </div>
+          </Col>
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Total Locations:</span>
+              <Badge bg="info">{metrics.totalLocations}</Badge>
+            </div>
+          </Col>
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Duration:</span>
+              <Badge bg="secondary">{formatDuration(metrics.startTime)}</Badge>
+            </div>
+          </Col>
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Avg Response:</span>
+              <Badge bg="success">{formatTime(metrics.averageResponseTime)}</Badge>
+            </div>
+          </Col>
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Min Response:</span>
+              <Badge bg="success">{formatTime(metrics.minResponseTime)}</Badge>
+            </div>
+          </Col>
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Max Response:</span>
+              <Badge bg="warning">{formatTime(metrics.maxResponseTime)}</Badge>
+            </div>
+          </Col>
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Success Rate:</span>
+              <Badge bg="success">
+                {metrics.totalQueries ? 
+                  ((metrics.successCount / metrics.totalQueries) * 100).toFixed(2) + '%' 
+                  : '-'}
+              </Badge>
+            </div>
+          </Col>
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Errors:</span>
+              <Badge bg="danger">{metrics.errorCount}</Badge>
+            </div>
+          </Col>
+          <Col xs={12} md={4}>
+            <div className="d-flex justify-content-between align-items-center border rounded p-2">
+              <span>Last Query:</span>
+              <Badge bg="info">
+                {metrics.lastQueryTime ? 
+                  new Date(metrics.lastQueryTime).toLocaleTimeString() 
+                  : '-'}
+              </Badge>
+            </div>
+          </Col>
+        </Row>
+      </Card.Body>
+    </Card>
+  );
+};

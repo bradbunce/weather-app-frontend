@@ -95,6 +95,9 @@ export const NavigationBar = () => {
                 <Nav.Link as={Link} to="/profile" onClick={handleNavClick}>
                   Profile
                 </Nav.Link>
+                <Nav.Link as={Link} to="/load-tester" onClick={handleNavClick}>
+                  Load Tester
+                </Nav.Link>
                 <Button 
                   variant="link" 
                   as={Nav.Link} 
