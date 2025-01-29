@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { useLocations } from './LocationsContext';
+import axios from 'axios';
 import { useLogger } from '@bradbunce/launchdarkly-react-logger';
+
+const LOCATIONS_API_URL = process.env.REACT_APP_LOCATIONS_API;
 
 const LoadTesterContext = createContext(null);
 
 export const LoadTesterProvider = ({ children }) => {
-  const { fetchLocations, locations } = useLocations();
   const logger = useLogger();
 
   // Test configuration and state
@@ -36,15 +37,31 @@ export const LoadTesterProvider = ({ children }) => {
     }));
   }, []);
 
+  // Separate method to fetch locations without updating global state
+  const fetchLocationsCount = useCallback(async () => {
+    try {
+      const response = await axios.get(`${LOCATIONS_API_URL}/locations`);
+      let locationData;
+      if (response.data?.locations) {
+        locationData = response.data.locations;
+      } else if (Array.isArray(response.data)) {
+        locationData = response.data;
+      } else {
+        locationData = [];
+      }
+      return locationData.length;
+    } catch (error) {
+      logger.error("Failed to fetch locations count", { error: error.message });
+      throw error;
+    }
+  }, [logger]);
+
   const executeQuery = useCallback(async () => {
     const startTime = performance.now();
     try {
-      await fetchLocations();
+      const locationCount = await fetchLocationsCount();
       const endTime = performance.now();
       const responseTime = endTime - startTime;
-      
-      // Get location count from context
-      const locationCount = locations.length;
 
       updateMetrics({
         totalQueries: metricsRef.current.totalQueries + 1,
@@ -74,7 +91,7 @@ export const LoadTesterProvider = ({ children }) => {
         totalQueries: metricsRef.current.totalQueries + 1
       });
     }
-  }, [fetchLocations, locations, updateMetrics, logger]);
+  }, [fetchLocationsCount, updateMetrics, logger]);
 
   const startTest = useCallback(() => {
     if (isRunning) return;
