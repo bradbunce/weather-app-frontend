@@ -59,7 +59,8 @@ export const Login = () => {
         error: err.message,
         username: credentials.username
       });
-      setError(err.response?.data?.error || err.message || "Failed to log in");
+      // Show a user-friendly error message for authentication failures
+      setError("Invalid username or password. Please try again.");
     } finally {
       setLoading(false);
     }
