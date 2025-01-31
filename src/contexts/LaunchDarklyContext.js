@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import { useLogger } from "@bradbunce/launchdarkly-react-logger";
+import { useLogger, LogLevel } from "@bradbunce/launchdarkly-react-logger";
 import { asyncWithLDProvider } from "launchdarkly-react-client-sdk";
 import { createLDContexts } from "../config/launchDarkly";
 
@@ -8,62 +8,132 @@ const LDContext = createContext();
 export const LDProvider = ({ children, onReady }) => {
   const [LDClient, setLDClient] = useState(null);
   const initializationRef = useRef(false);
-  const logger = useLogger();
+  const contextRef = useRef(null);
+  const logger = useLogger({
+    minimumLevel: LogLevel.Debug,
+    name: 'LaunchDarklyContext'
+  });
 
   // Initialize LaunchDarkly client
   useEffect(() => {
     const initializeLDClient = async () => {
-      if (initializationRef.current) return; // Prevent multiple initializations
+      if (initializationRef.current) return;
       initializationRef.current = true;
 
       try {
-        // Initialize with user context for anonymous user
-        const initialContexts = createLDContexts(null);
+        // Create multi-context for both user and application
+        contextRef.current = createLDContexts(null);
+        
         const LDProviderComponent = await asyncWithLDProvider({
           clientSideID: process.env.REACT_APP_LD_CLIENTSIDE_ID,
-          context: initialContexts
+          context: contextRef.current,
+          options: {
+            sendEvents: true,
+            streaming: true
+          }
         });
 
+        // Get and set SDK log level from flag (string value)
+        const client = LDProviderComponent.client;
+        if (client) {
+          // Wait for client to be ready and stream connection established
+          await new Promise((resolve) => {
+            const handleReady = () => {
+              client.off('ready', handleReady);
+              resolve();
+            };
+            client.on('ready', handleReady);
+          });
+
+          console.log('LaunchDarkly client ready, evaluating flags');
+
+          // Get SDK log level flag (string type)
+          try {
+            const sdkLogLevel = client.variation(process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY, contextRef.current, 'debug');
+            console.log('SDK log level flag evaluated to:', sdkLogLevel);
+            // Convert string log level to LogLevel enum if needed
+            const logLevel = LogLevel[sdkLogLevel.toUpperCase()] || LogLevel.Debug;
+            logger.setLevel(logLevel);
+            logger.info(`SDK log level initialized to: ${sdkLogLevel}`);
+          } catch (error) {
+            console.error("Error getting SDK log level flag", { 
+              error: error.message,
+              flag: process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY
+            });
+          }
+
+          // Get console log level flag
+          try {
+            const initialLogLevel = client.variation(process.env.REACT_APP_LD_CONSOLE_LOG_FLAG_KEY, contextRef.current, 'info');
+            console.log('Console log level flag evaluated to:', initialLogLevel);
+            logger.info(`Console log level initialized to: ${initialLogLevel}`);
+          } catch (error) {
+            console.error("Error getting console log level flag", { 
+              error: error.message,
+              flag: process.env.REACT_APP_LD_CONSOLE_LOG_FLAG_KEY
+            });
+          }
+        }
+
         setLDClient(() => LDProviderComponent);
-        onReady?.(); // Call onReady when LD is initialized
+        onReady?.();
       } catch (error) {
-        logger.error("Error initializing LaunchDarkly", { error: error.message });
+        console.error("Error initializing LaunchDarkly", { error: error.message });
       }
     };
     initializeLDClient();
   }, [onReady, logger]);
 
-  // Update log level when flag changes
+  // Update SDK log level when flag changes
   useEffect(() => {
     if (!LDClient?.client) return;
 
-    const logLevelFlagKey = process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY;
-    if (!logLevelFlagKey) return;
-
-    try {
-      // Set initial log level
-      const initialLogLevel = LDClient.client.variation(logLevelFlagKey, 'info');
-      logger.info(`LaunchDarkly SDK log level initialized to: ${initialLogLevel}`);
-
-      // Listen for flag changes
-      const handleFlagChange = (flagKey) => {
-        if (flagKey === logLevelFlagKey) {
-          try {
-            const newLogLevel = LDClient.client.variation(logLevelFlagKey, 'info');
-            logger.info(`LaunchDarkly SDK log level updated to: ${newLogLevel}`);
-          } catch (error) {
-            logger.error("Error updating log level", { error: error.message });
-          }
+    const handleSdkLogLevelChange = (flagKey) => {
+      if (flagKey === process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY) {
+        try {
+          const newSdkLogLevel = LDClient.client.variation(process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY, contextRef.current, 'debug');
+          console.log('SDK log level flag changed to:', newSdkLogLevel);
+          const logLevel = LogLevel[newSdkLogLevel.toUpperCase()] || LogLevel.Debug;
+          logger.setLevel(logLevel);
+          logger.info(`Updated SDK log level to: ${newSdkLogLevel}`);
+        } catch (error) {
+          console.error("Error handling SDK log level change", { 
+            error: error.message,
+            flag: process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY
+          });
         }
-      };
+      }
+    };
 
-      LDClient.client.on('change', handleFlagChange);
-      return () => {
-        LDClient.client.off('change', handleFlagChange);
-      };
-    } catch (error) {
-      logger.error("Error setting up log level monitoring", { error: error.message });
-    }
+    LDClient.client.on('change', handleSdkLogLevelChange);
+    return () => {
+      LDClient.client.off('change', handleSdkLogLevelChange);
+    };
+  }, [LDClient, logger]);
+
+  // Update console log level when flag changes
+  useEffect(() => {
+    if (!LDClient?.client) return;
+
+    const handleConsoleLogLevelChange = (flagKey) => {
+      if (flagKey === process.env.REACT_APP_LD_CONSOLE_LOG_FLAG_KEY) {
+        try {
+          const newLogLevel = LDClient.client.variation(process.env.REACT_APP_LD_CONSOLE_LOG_FLAG_KEY, contextRef.current, 'info');
+          console.log('Console log level flag changed to:', newLogLevel);
+          logger.info(`Updated console log level to: ${newLogLevel}`);
+        } catch (error) {
+          console.error("Error handling console log level change", { 
+            error: error.message,
+            flag: process.env.REACT_APP_LD_CONSOLE_LOG_FLAG_KEY
+          });
+        }
+      }
+    };
+
+    LDClient.client.on('change', handleConsoleLogLevelChange);
+    return () => {
+      LDClient.client.off('change', handleConsoleLogLevelChange);
+    };
   }, [LDClient, logger]);
 
   if (!LDClient) {

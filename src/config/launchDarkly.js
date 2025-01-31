@@ -30,15 +30,18 @@ export const ContextKinds = {
 };
 
 /**
- * Creates a context object for LaunchDarkly evaluation
- * Returns a user context for initialization
+ * Creates a multi-context object for LaunchDarkly evaluation
+ * Combines user and application contexts
  *
  * @param {Object} userData - User data for user context
- * @returns {Object} Context object for LaunchDarkly
+ * @returns {Object} Multi-context object for LaunchDarkly
  */
 export const createLDContexts = (userData) => {
-  // Return just the user context for initialization
-  return ContextKinds.USER.createContext(userData);
+  return {
+    kind: "multi",
+    user: ContextKinds.USER.createContext(userData),
+    application: ContextKinds.APPLICATION.createContext()
+  };
 };
 
 /**
