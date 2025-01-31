@@ -23,25 +23,22 @@ export const ContextKinds = {
     // Function to create application context
     createContext: () => ({
       kind: "application",
-      key: process.env.REACT_APP_NAME,
-      environment: process.env.REACT_APP_ENVIRONMENT,
+      key: process.env.REACT_APP_NAME || "weather-app",
+      environment: process.env.REACT_APP_ENVIRONMENT || "development",
     }),
   },
 };
 
 /**
- * Creates a multi-context object for LaunchDarkly evaluation
- * Combines user and application contexts into a single context object
+ * Creates a context object for LaunchDarkly evaluation
+ * Returns a user context for initialization
  *
  * @param {Object} userData - User data for user context
- * @returns {Object} Multi-context object for LaunchDarkly
+ * @returns {Object} Context object for LaunchDarkly
  */
 export const createLDContexts = (userData) => {
-  return {
-    kind: "multi", // Added this
-    user: ContextKinds.USER.createContext(userData),
-    application: ContextKinds.APPLICATION.createContext(),
-  };
+  // Return just the user context for initialization
+  return ContextKinds.USER.createContext(userData);
 };
 
 /**

@@ -5,53 +5,10 @@ import { createLDContexts } from "../config/launchDarkly";
 
 const LDContext = createContext();
 
-// Create a logger adapter that matches LaunchDarkly's expectations
-const createLoggerAdapter = (logger) => ({
-  debug: (...args) => logger.debug?.(...args),
-  info: (...args) => logger.info?.(...args),
-  warn: (...args) => logger.warn?.(...args),
-  error: (...args) => logger.error?.(...args),
-  // Required by LaunchDarkly
-  isDebugEnabled: () => true
-});
-
 export const LDProvider = ({ children, onReady }) => {
   const [LDClient, setLDClient] = useState(null);
   const initializationRef = useRef(false);
   const logger = useLogger();
-  const loggerAdapter = createLoggerAdapter(logger);
-
-  // Update log level when flag changes
-  useEffect(() => {
-    if (!LDClient) return;
-
-    const logLevelFlagKey = process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY;
-    if (!logLevelFlagKey) return;
-
-    // Get the underlying LaunchDarkly client instance
-    const ldClient = LDClient.client;
-    
-    // Listen for flag changes
-    const handleFlagChange = (flagKey) => {
-      if (flagKey === logLevelFlagKey) {
-        const newLogLevel = ldClient.variation(logLevelFlagKey, 'info');
-        ldClient.setLogLevel(newLogLevel);
-        logger.info(`LaunchDarkly SDK log level updated to: ${newLogLevel}`);
-      }
-    };
-
-    // Set initial log level
-    const initialLogLevel = ldClient.variation(logLevelFlagKey, 'info');
-    ldClient.setLogLevel(initialLogLevel);
-    logger.info(`LaunchDarkly SDK log level initialized to: ${initialLogLevel}`);
-
-    // Subscribe to flag changes
-    ldClient.on('change', handleFlagChange);
-
-    return () => {
-      ldClient.off('change', handleFlagChange);
-    };
-  }, [LDClient, logger]);
 
   // Initialize LaunchDarkly client
   useEffect(() => {
@@ -60,20 +17,13 @@ export const LDProvider = ({ children, onReady }) => {
       initializationRef.current = true;
 
       try {
-        // Initialize with multi-context right away (null user = anonymous)
+        // Initialize with user context for anonymous user
         const initialContexts = createLDContexts(null);
         const LDProviderComponent = await asyncWithLDProvider({
           clientSideID: process.env.REACT_APP_LD_CLIENTSIDE_ID,
-          context: initialContexts, // Set initial context here
-          timeout: 2, // Set client init timeout (seconds)
-          options: {
-            logger: loggerAdapter, // Use the adapter that matches LaunchDarkly's expectations
-            bootstrap: {
-              // Set initial flag values
-              [process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY]: 'info'
-            }
-          }
+          context: initialContexts
         });
+
         setLDClient(() => LDProviderComponent);
         onReady?.(); // Call onReady when LD is initialized
       } catch (error) {
@@ -81,7 +31,40 @@ export const LDProvider = ({ children, onReady }) => {
       }
     };
     initializeLDClient();
-  }, [onReady, logger, loggerAdapter]);
+  }, [onReady, logger]);
+
+  // Update log level when flag changes
+  useEffect(() => {
+    if (!LDClient?.client) return;
+
+    const logLevelFlagKey = process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY;
+    if (!logLevelFlagKey) return;
+
+    try {
+      // Set initial log level
+      const initialLogLevel = LDClient.client.variation(logLevelFlagKey, 'info');
+      logger.info(`LaunchDarkly SDK log level initialized to: ${initialLogLevel}`);
+
+      // Listen for flag changes
+      const handleFlagChange = (flagKey) => {
+        if (flagKey === logLevelFlagKey) {
+          try {
+            const newLogLevel = LDClient.client.variation(logLevelFlagKey, 'info');
+            logger.info(`LaunchDarkly SDK log level updated to: ${newLogLevel}`);
+          } catch (error) {
+            logger.error("Error updating log level", { error: error.message });
+          }
+        }
+      };
+
+      LDClient.client.on('change', handleFlagChange);
+      return () => {
+        LDClient.client.off('change', handleFlagChange);
+      };
+    } catch (error) {
+      logger.error("Error setting up log level monitoring", { error: error.message });
+    }
+  }, [LDClient, logger]);
 
   if (!LDClient) {
     return <div />;
