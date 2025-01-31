@@ -17,6 +17,13 @@ export const LDProvider = ({ children, onReady }) => {
   // Initialize LaunchDarkly client
   useEffect(() => {
     const initializeLDClient = async () => {
+      // Early environment variable check
+      console.log('Environment Variables Check:', {
+        clientSideId: process.env.REACT_APP_LD_CLIENTSIDE_ID,
+        sdkFlagKey: process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY,
+        consoleFlagKey: process.env.REACT_APP_LD_CONSOLE_LOG_FLAG_KEY
+      });
+
       if (initializationRef.current) return;
       initializationRef.current = true;
 
@@ -48,9 +55,12 @@ export const LDProvider = ({ children, onReady }) => {
           console.log('LaunchDarkly client ready, evaluating flags');
 
           // Get SDK log level flag (string type)
+          console.log('Attempting to evaluate SDK log level flag with key:', process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY);
+          console.log('Using context:', contextRef.current);
           try {
             const sdkLogLevel = client.variation(process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY, contextRef.current, 'debug');
             console.log('SDK log level flag evaluated to:', sdkLogLevel);
+            console.log('Available LogLevels:', LogLevel);
             // Convert string log level to LogLevel enum if needed
             const logLevel = LogLevel[sdkLogLevel.toUpperCase()] || LogLevel.Debug;
             logger.setLevel(logLevel);
