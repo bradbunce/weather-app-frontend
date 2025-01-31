@@ -56,10 +56,7 @@ export const LDProvider = ({ children, onReady }) => {
           context: initialContexts, // Set initial context here
           timeout: 2, // Set client init timeout (seconds)
           options: {
-            logger: {
-              // Default to info level, will be updated by flag evaluation
-              level: 'info'
-            },
+            logger, // Pass the logger instance directly
             bootstrap: {
               // Set initial flag values
               [process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY]: 'info'

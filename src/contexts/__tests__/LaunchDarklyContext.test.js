@@ -5,25 +5,35 @@ import * as launchDarklyReactSDK from 'launchdarkly-react-client-sdk';
 import { createLDContexts } from '../../config/launchDarkly';
 
 // Mock the LaunchDarkly config module
+const mockContexts = {
+  kind: "multi",
+  user: {
+    kind: "user",
+    key: "anonymous"
+  },
+  application: {
+    kind: "application",
+    key: undefined,
+    environment: undefined
+  }
+};
+
 jest.mock('../../config/launchDarkly', () => ({
-  createLDContexts: jest.fn(() => ({
-    kind: "multi",
-    user: {
-      kind: "user",
-      key: "anonymous"
-    },
-    application: {
-      kind: "application",
-      key: undefined,
-      environment: undefined
-    }
-  }))
+  createLDContexts: jest.fn((user) => mockContexts)
 }));
 
-// Mock the logger
+// Mock the logger with all required methods
 const mockLogger = {
+  // Standard logging levels
+  debug: jest.fn(),
   info: jest.fn(),
-  error: jest.fn()
+  warn: jest.fn(),
+  error: jest.fn(),
+  trace: jest.fn(),
+  fatal: jest.fn(),
+  // Additional methods that might be expected
+  log: jest.fn(),
+  isDebugEnabled: jest.fn(() => true)
 };
 
 jest.mock('@bradbunce/launchdarkly-react-logger', () => ({
@@ -48,7 +58,7 @@ describe('LaunchDarklyContext', () => {
     // Reset environment variables
     process.env = { ...mockEnvVars };
 
-    // Create mock LD client
+    // Create mock LD client with logger methods
     mockSetLogLevel = jest.fn();
     mockVariation = jest.fn().mockReturnValue('info');
     mockOn = jest.fn();
@@ -59,18 +69,27 @@ describe('LaunchDarklyContext', () => {
       variation: mockVariation,
       on: mockOn,
       off: mockOff,
+      logger: mockLogger,
       client: {
         setLogLevel: mockSetLogLevel,
         variation: mockVariation,
         on: mockOn,
-        off: mockOff
+        off: mockOff,
+        logger: mockLogger
       }
     };
 
     // Mock the asyncWithLDProvider function
     jest.spyOn(launchDarklyReactSDK, 'asyncWithLDProvider')
       .mockImplementation(async (config) => {
-        mockProviderConfig = { ...config };
+        // Store config for verification
+        mockProviderConfig = {
+          clientSideID: config.clientSideID,
+          context: config.context,
+          timeout: config.timeout,
+          options: config.options
+        };
+
         const LDProvider = ({ children, onReady }) => {
           const [client, setClient] = React.useState(null);
           const initializationRef = React.useRef(false);
@@ -81,8 +100,12 @@ describe('LaunchDarklyContext', () => {
             initializationRef.current = true;
 
             const initClient = async () => {
-              setClient(mockLDClient);
-              onReady?.();
+              try {
+                setClient(mockLDClient);
+                onReady?.();
+              } catch (error) {
+                mockLogger.error("Error initializing LaunchDarkly", { error: error.message });
+              }
             };
 
             initClient();
@@ -148,11 +171,16 @@ describe('LaunchDarklyContext', () => {
     await waitForEffects();
     await waitForEffects();
 
+    // Verify createLDContexts was called with null user
+    expect(createLDContexts).toHaveBeenCalledWith(null);
+
     // Verify initialization config
     expect(mockProviderConfig).toBeDefined();
     expect(mockProviderConfig.clientSideID).toBe('mock-client-id');
+    expect(mockProviderConfig.context).toEqual(mockContexts);
+    expect(mockProviderConfig.timeout).toBe(2);
     expect(mockProviderConfig.options).toEqual({
-      logger: { level: 'info' },
+      logger: mockLogger,
       bootstrap: { 'sdk-log-level': 'info' }
     });
 
