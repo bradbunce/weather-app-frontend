@@ -46,21 +46,27 @@ export const LDProvider = ({ children, onReady }) => {
           // Wait for client to be ready and stream connection established
           await new Promise((resolve) => {
             const handleReady = () => {
+              console.log('LaunchDarkly ready event triggered');
               client.off('ready', handleReady);
               resolve();
             };
+            console.log('Setting up LaunchDarkly ready handler');
             client.on('ready', handleReady);
           });
 
           console.log('LaunchDarkly client ready, evaluating flags');
+          console.log('All client flags:', client.allFlags());
 
           // Get SDK log level flag (string type)
-          console.log('Attempting to evaluate SDK log level flag with key:', process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY);
-          console.log('Using context:', contextRef.current);
+          console.log('Starting SDK log level flag evaluation...');
+          console.log('Flag key:', process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY);
+          console.log('Context:', JSON.stringify(contextRef.current, null, 2));
+          
           try {
+            console.log('Calling client.variation...');
             const sdkLogLevel = client.variation(process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY, contextRef.current, 'debug');
-            console.log('SDK log level flag evaluated to:', sdkLogLevel);
-            console.log('Available LogLevels:', LogLevel);
+            console.log('SDK log level flag successfully evaluated to:', sdkLogLevel);
+            console.log('Available LogLevels:', Object.keys(LogLevel));
             // Convert string log level to LogLevel enum if needed
             const logLevel = LogLevel[sdkLogLevel.toUpperCase()] || LogLevel.Debug;
             logger.setLevel(logLevel);
