@@ -29,11 +29,17 @@ const mockLogger = {
   info: jest.fn(),
   warn: jest.fn(),
   error: jest.fn(),
-  trace: jest.fn(),
-  fatal: jest.fn(),
   // Additional methods that might be expected
-  log: jest.fn(),
   isDebugEnabled: jest.fn(() => true)
+};
+
+// Mock the logger adapter
+const mockLoggerAdapter = {
+  debug: (...args) => mockLogger.debug(...args),
+  info: (...args) => mockLogger.info(...args),
+  warn: (...args) => mockLogger.warn(...args),
+  error: (...args) => mockLogger.error(...args),
+  isDebugEnabled: () => true
 };
 
 jest.mock('@bradbunce/launchdarkly-react-logger', () => ({
@@ -69,13 +75,13 @@ describe('LaunchDarklyContext', () => {
       variation: mockVariation,
       on: mockOn,
       off: mockOff,
-      logger: mockLogger,
+      logger: mockLoggerAdapter,
       client: {
         setLogLevel: mockSetLogLevel,
         variation: mockVariation,
         on: mockOn,
         off: mockOff,
-        logger: mockLogger
+        logger: mockLoggerAdapter
       }
     };
 
@@ -180,7 +186,7 @@ describe('LaunchDarklyContext', () => {
     expect(mockProviderConfig.context).toEqual(mockContexts);
     expect(mockProviderConfig.timeout).toBe(2);
     expect(mockProviderConfig.options).toEqual({
-      logger: mockLogger,
+      logger: mockLoggerAdapter,
       bootstrap: { 'sdk-log-level': 'info' }
     });
 

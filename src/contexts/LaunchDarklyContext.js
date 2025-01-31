@@ -5,10 +5,21 @@ import { createLDContexts } from "../config/launchDarkly";
 
 const LDContext = createContext();
 
+// Create a logger adapter that matches LaunchDarkly's expectations
+const createLoggerAdapter = (logger) => ({
+  debug: (...args) => logger.debug?.(...args),
+  info: (...args) => logger.info?.(...args),
+  warn: (...args) => logger.warn?.(...args),
+  error: (...args) => logger.error?.(...args),
+  // Required by LaunchDarkly
+  isDebugEnabled: () => true
+});
+
 export const LDProvider = ({ children, onReady }) => {
   const [LDClient, setLDClient] = useState(null);
   const initializationRef = useRef(false);
   const logger = useLogger();
+  const loggerAdapter = createLoggerAdapter(logger);
 
   // Update log level when flag changes
   useEffect(() => {
@@ -56,7 +67,7 @@ export const LDProvider = ({ children, onReady }) => {
           context: initialContexts, // Set initial context here
           timeout: 2, // Set client init timeout (seconds)
           options: {
-            logger, // Pass the logger instance directly
+            logger: loggerAdapter, // Use the adapter that matches LaunchDarkly's expectations
             bootstrap: {
               // Set initial flag values
               [process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY]: 'info'
@@ -70,7 +81,7 @@ export const LDProvider = ({ children, onReady }) => {
       }
     };
     initializeLDClient();
-  }, [onReady, logger]);
+  }, [onReady, logger, loggerAdapter]);
 
   if (!LDClient) {
     return <div />;
