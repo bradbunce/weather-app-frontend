@@ -1,12 +1,12 @@
 {
   "name": "weather-app-frontend",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "private": true,
   "engines": {
     "node": ">=18.2.0"
   },
   "dependencies": {
-    "@bradbunce/launchdarkly-react-logger": "1.0.13",
+    "@bradbunce/launchdarkly-react-logger": "^1.1.0",
     "axios": "^1.7.9",
     "bootstrap": "^5.3.3",
     "cra-template": "1.2.0",
