@@ -126,9 +126,16 @@ const AppContent = ({ ldReady, authReady }) => {
               }
             />
             <Route path="/reset-password" element={<PasswordResetConfirm />} />
-            <Route path="/log-level-test" element={<LogLevelTester />} />
 
             {/* Protected routes */}
+            <Route
+              path="/log-level-test"
+              element={
+                <PrivateRoute>
+                  <LogLevelTester />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/dashboard"
               element={
