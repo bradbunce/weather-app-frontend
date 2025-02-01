@@ -28,7 +28,10 @@ A modern, real-time weather tracking application built with React that allows us
 - Context-based state management
 - Comprehensive error handling and loading states
 - Development debugging tools
-- Logging system for monitoring and debugging
+- LaunchDarkly Integration:
+  - Feature flag management
+  - SDK log level control (error, warn, info, debug)
+  - Real-time log level updates
 
 ## Getting Started
 
@@ -54,7 +57,10 @@ A modern, real-time weather tracking application built with React that allows us
 
 The application requires the following environment variables:
 - Create a `.env` file based on `.env.example`
-- Configure your environment variables as needed
+- Required variables:
+  - `REACT_APP_LD_CLIENTSIDE_ID`: LaunchDarkly client-side ID
+  - `REACT_APP_LD_SDK_LOG_FLAG_KEY`: Feature flag key for SDK log level control
+  - Additional variables as specified in `.env.example`
 
 ## Contributing
 

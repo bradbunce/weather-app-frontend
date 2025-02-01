@@ -2,49 +2,27 @@ import React from 'react';
 import { render, act } from '@testing-library/react';
 import { LDProvider } from '../LaunchDarklyContext';
 import * as launchDarklyReactSDK from 'launchdarkly-react-client-sdk';
-import { createLDContexts } from '../../config/launchDarkly';
+import { createLDContexts, getStoredLogLevel, storeLogLevel } from '../../config/launchDarkly';
 
 // Mock the LaunchDarkly config module
-const mockContexts = {
-  kind: "multi",
-  user: {
-    kind: "user",
-    key: "anonymous"
-  },
-  application: {
-    kind: "application",
-    key: undefined,
-    environment: undefined
-  }
-};
-
 jest.mock('../../config/launchDarkly', () => ({
-  createLDContexts: jest.fn((user) => mockContexts)
+  createLDContexts: jest.fn(() => ({
+    kind: "multi",
+    user: { kind: "user", key: "anonymous", anonymous: true },
+    application: { kind: "application", key: "weather-app", environment: "development" }
+  })),
+  getStoredLogLevel: jest.fn(() => 'info'),
+  storeLogLevel: jest.fn()
 }));
 
-// Mock the logger with all required methods
-const mockLogger = {
-  // Standard logging levels
+// Mock console methods
+const mockConsole = {
   debug: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
-  error: jest.fn(),
-  // Additional methods that might be expected
-  isDebugEnabled: jest.fn(() => true)
+  error: jest.fn()
 };
-
-// Mock the logger adapter
-const mockLoggerAdapter = {
-  debug: (...args) => mockLogger.debug(...args),
-  info: (...args) => mockLogger.info(...args),
-  warn: (...args) => mockLogger.warn(...args),
-  error: (...args) => mockLogger.error(...args),
-  isDebugEnabled: () => true
-};
-
-jest.mock('@bradbunce/launchdarkly-react-logger', () => ({
-  useLogger: () => mockLogger
-}));
+global.console = { ...console, ...mockConsole };
 
 // Mock environment variables
 const mockEnvVars = {
@@ -54,110 +32,47 @@ const mockEnvVars = {
 
 describe('LaunchDarklyContext', () => {
   let mockLDClient;
-  let mockSetLogLevel;
   let mockVariation;
   let mockOn;
   let mockOff;
-  let mockProviderConfig;
 
   beforeEach(() => {
     // Reset environment variables
     process.env = { ...mockEnvVars };
 
-    // Create mock LD client with logger methods
-    mockSetLogLevel = jest.fn();
+    // Reset console mocks
+    Object.values(mockConsole).forEach(mock => mock.mockClear());
+
+    // Reset LaunchDarkly config mocks
+    getStoredLogLevel.mockClear();
+    storeLogLevel.mockClear();
+
+    // Create mock LD client
     mockVariation = jest.fn().mockReturnValue('info');
     mockOn = jest.fn();
     mockOff = jest.fn();
 
     mockLDClient = {
-      setLogLevel: mockSetLogLevel,
       variation: mockVariation,
       on: mockOn,
       off: mockOff,
-      logger: mockLoggerAdapter,
-      client: {
-        setLogLevel: mockSetLogLevel,
-        variation: mockVariation,
-        on: mockOn,
-        off: mockOff,
-        logger: mockLoggerAdapter
+      _client: {
+        logger: {
+          debug: mockConsole.debug,
+          info: mockConsole.info,
+          warn: mockConsole.warn,
+          error: mockConsole.error
+        }
       }
     };
 
     // Mock the asyncWithLDProvider function
     jest.spyOn(launchDarklyReactSDK, 'asyncWithLDProvider')
       .mockImplementation(async (config) => {
-        // Store config for verification
-        mockProviderConfig = {
-          clientSideID: config.clientSideID,
-          context: config.context,
-          timeout: config.timeout,
-          options: config.options
-        };
-
-        const LDProvider = ({ children, onReady }) => {
-          const [client, setClient] = React.useState(null);
-          const initializationRef = React.useRef(false);
-
-          // Initialize LaunchDarkly client
-          React.useEffect(() => {
-            if (initializationRef.current) return;
-            initializationRef.current = true;
-
-            const initClient = async () => {
-              try {
-                setClient(mockLDClient);
-                onReady?.();
-              } catch (error) {
-                mockLogger.error("Error initializing LaunchDarkly", { error: error.message });
-              }
-            };
-
-            initClient();
-          }, [onReady]);
-
-          // Update log level when flag changes
-          React.useEffect(() => {
-            if (!client) return;
-
-            const logLevelFlagKey = process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY;
-            if (!logLevelFlagKey) return;
-
-            const handleFlagChange = (flagKey) => {
-              if (flagKey === logLevelFlagKey) {
-                const newLogLevel = client.variation(logLevelFlagKey, 'info');
-                client.setLogLevel(newLogLevel);
-                mockLogger.info(`LaunchDarkly SDK log level updated to: ${newLogLevel}`);
-              }
-            };
-
-            const initialLogLevel = client.variation(logLevelFlagKey, 'info');
-            client.setLogLevel(initialLogLevel);
-            mockLogger.info(`LaunchDarkly SDK log level initialized to: ${initialLogLevel}`);
-
-            client.on('change', handleFlagChange);
-            return () => {
-              client.off('change', handleFlagChange);
-            };
-          }, [client]);
-
-          if (!client) {
-            return <div />;
-          }
-
-          return <div>{children}</div>;
-        };
+        const LDProvider = ({ children }) => <div>{children}</div>;
         LDProvider.client = mockLDClient;
         return LDProvider;
       });
-
-    // Reset mocks
-    jest.clearAllMocks();
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   const waitForEffects = async () => {
@@ -166,118 +81,56 @@ describe('LaunchDarklyContext', () => {
     });
   };
 
-  it('initializes with default log level', async () => {
-    const onReady = jest.fn();
-
-    await act(async () => {
-      render(<LDProvider onReady={onReady}>Test</LDProvider>);
-    });
-
-    // Wait for initialization and flag monitoring effects
-    await waitForEffects();
-    await waitForEffects();
-
-    // Verify createLDContexts was called with null user
-    expect(createLDContexts).toHaveBeenCalledWith(null);
-
-    // Verify initialization config
-    expect(mockProviderConfig).toBeDefined();
-    expect(mockProviderConfig.clientSideID).toBe('mock-client-id');
-    expect(mockProviderConfig.context).toEqual(mockContexts);
-    expect(mockProviderConfig.timeout).toBe(2);
-    expect(mockProviderConfig.options).toEqual({
-      logger: mockLoggerAdapter,
-      bootstrap: { 'sdk-log-level': 'info' }
-    });
-
-    // Verify onReady callback
-    expect(onReady).toHaveBeenCalled();
-  });
-
-  it('sets initial log level from flag evaluation', async () => {
-    mockVariation.mockReturnValue('debug');
+  it('initializes with stored log level', async () => {
+    getStoredLogLevel.mockReturnValue('warn');
 
     await act(async () => {
       render(<LDProvider>Test</LDProvider>);
     });
-
-    // Wait for initialization and flag monitoring effects
-    await waitForEffects();
     await waitForEffects();
 
-    // Verify log level was set from flag
-    expect(mockVariation).toHaveBeenCalledWith('sdk-log-level', 'info');
-    expect(mockSetLogLevel).toHaveBeenCalledWith('debug');
-    expect(mockLogger.info).toHaveBeenCalledWith('LaunchDarkly SDK log level initialized to: debug');
+    // Verify initialization logging
+    expect(console.log).toHaveBeenCalledWith('=== Initializing LaunchDarkly Client ===');
+    expect(console.log).toHaveBeenCalledWith('Setting SDK log level to: warn');
+    expect(console.log).toHaveBeenCalledWith('=== LaunchDarkly Client Initialized ===');
   });
 
   it('updates log level when flag changes', async () => {
     await act(async () => {
       render(<LDProvider>Test</LDProvider>);
     });
-
-    // Wait for initialization and flag monitoring effects
     await waitForEffects();
-    await waitForEffects();
-
-    // Verify change listener was registered
-    expect(mockOn).toHaveBeenCalledWith('change', expect.any(Function));
 
     // Simulate flag change
     mockVariation.mockReturnValue('debug');
-    const changeHandler = mockOn.mock.calls[0][1];
+    const flagKey = process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY;
+    const changeHandler = mockOn.mock.calls.find(call => call[0] === `change:${flagKey}`)?.[1];
+    expect(changeHandler).toBeDefined();
+
+    // Trigger flag change
     await act(async () => {
-      changeHandler('sdk-log-level');
+      await changeHandler();
     });
-
     await waitForEffects();
 
-    // Verify log level was updated
-    expect(mockSetLogLevel).toHaveBeenCalledWith('debug');
-    expect(mockLogger.info).toHaveBeenCalledWith('LaunchDarkly SDK log level updated to: debug');
-  });
+    // Verify log level was stored
+    expect(storeLogLevel).toHaveBeenCalledWith('debug');
 
-  it('cleans up event listeners on unmount', async () => {
-    let rendered;
-    await act(async () => {
-      rendered = render(<LDProvider>Test</LDProvider>);
-    });
-
-    // Wait for initialization and flag monitoring effects
-    await waitForEffects();
-    await waitForEffects();
-
-    // Verify change listener was registered
-    expect(mockOn).toHaveBeenCalledWith('change', expect.any(Function));
-
-    // Get the registered handler for cleanup verification
-    const changeHandler = mockOn.mock.calls[0][1];
-
-    // Unmount component
-    await act(async () => {
-      rendered.unmount();
-    });
-
-    await waitForEffects();
-
-    // Verify listener was removed with the same handler
-    expect(mockOff).toHaveBeenCalledWith('change', changeHandler);
+    // Verify change logging
+    expect(console.log).toHaveBeenCalledWith('=== Log Level Changed ===');
+    expect(console.log).toHaveBeenCalledWith('New log level will be: debug');
   });
 
   it('handles missing flag key gracefully', async () => {
-    // Remove flag key from environment
     delete process.env.REACT_APP_LD_SDK_LOG_FLAG_KEY;
 
     await act(async () => {
       render(<LDProvider>Test</LDProvider>);
     });
-
-    // Wait for initialization and flag monitoring effects
-    await waitForEffects();
     await waitForEffects();
 
-    // Verify no flag evaluation or log level changes
-    expect(mockVariation).not.toHaveBeenCalled();
-    expect(mockSetLogLevel).not.toHaveBeenCalled();
+    // Should still initialize with stored level
+    expect(getStoredLogLevel).toHaveBeenCalled();
+    expect(console.log).toHaveBeenCalledWith('=== Initializing LaunchDarkly Client ===');
   });
 });

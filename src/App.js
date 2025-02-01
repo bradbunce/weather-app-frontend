@@ -20,6 +20,7 @@ import Profile from "./components/Profile";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { PasswordResetConfirm } from "./components/PasswordResetConfirm";
 import { LoadTester } from "./components/LoadTester";
+import LogLevelTester from "./components/LogLevelTester";
 
 // Context Providers and Hooks
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -125,6 +126,7 @@ const AppContent = ({ ldReady, authReady }) => {
               }
             />
             <Route path="/reset-password" element={<PasswordResetConfirm />} />
+            <Route path="/log-level-test" element={<LogLevelTester />} />
 
             {/* Protected routes */}
             <Route
